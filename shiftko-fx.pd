@@ -107,6 +107,13 @@
 #X msg 520 960 decay 0.96;
 #X msg 520 988 damping 2000;
 #X obj 500 950 sig~ 1;
+#X obj 30 1080 bp~ 420 2;
+#X obj 30 1108 expr~ tanh($v1);
+#X obj 30 1136 hip~ 120;
+#X obj 30 1164 *~ 0.12;
+#X obj 30 1192 delwrite~ rvfb 200;
+#X obj 170 1164 delread~ rvfb 23;
+#X obj 170 1192 +~;
 #X connect 0 0 7 0;
 #X connect 4 0 5 0;
 #X connect 5 0 6 0;
@@ -115,7 +122,7 @@
 #X connect 8 0 9 0;
 #X connect 9 0 10 0;
 #X connect 10 0 11 1;
-#X connect 98 0 99 0;
+#X connect 98 0 116 0;
 #X connect 2 0 15 0;
 #X connect 12 0 13 0;
 #X connect 13 0 14 0;
@@ -215,3 +222,10 @@
 #X connect 106 0 97 0;
 #X connect 107 0 76 0;
 #X connect 107 0 77 0;
+#X connect 99 0 110 0;
+#X connect 110 0 111 0;
+#X connect 111 0 112 0;
+#X connect 112 0 113 0;
+#X connect 113 0 114 0;
+#X connect 115 0 116 1;
+#X connect 116 0 99 0;
