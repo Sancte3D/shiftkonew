@@ -240,6 +240,11 @@
 #X obj 220 185 s perf-safe;
 #X text 245 150 0=full\ 1=safe;
 #X text 220 205 CPU guard for wow/flutter + recursive feedback;
+#X obj 20 510 cnv 15 670 170 empty empty UDP_BRIDGE_IN_7400 8 12 0 14 -257983 -66577 0;
+#X obj 700 510 cnv 15 700 250 empty empty UDP_BRIDGE_OUT_7401 8 12 0 14 -257983 -66577 0;
+#X obj 900 80 cnv 15 360 170 empty empty CHAOS_AND_MACRO 8 12 0 14 -262130 -66577 0;
+#X text 730 742 pure-data -> python telemetry;
+#X text 35 666 python -> pure-data control bus;
 #X connect 9 0 10 0;
 #X connect 13 0 14 0;
 #X connect 15 0 16 0;
