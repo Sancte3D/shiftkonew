@@ -403,16 +403,13 @@ class TouchSensor:
         pass
 
     def _reset(self):
-        """Setzt alle Gates und Levels auf Default."""
-        self.pd.send('drone-gate', 1)
-        self.pd.send('notes-gate', 1)
-        self.pd.send('noise-gate', 1)
-        self.pd.send('drone-level', 0.75)
-        self.pd.send('notes-level', 0.55)
-        self.pd.send('noise-level', 0.35)
-        self.pd.send('reverb-room', 0.55)
-        self.pd.send('master-vol',  0.50)
-        log.info("Touch long → RESET")
+        """
+        Sanfter Reset ohne harte Pegelspruenge.
+        Triggert nur musikalische Zustandswechsel in PD.
+        """
+        self.pd.send('macro-gate', 0)
+        self.pd.send('randomize')
+        log.info("Touch long -> gentle reset")
 
     def _shutdown(self):
         """Fährt PD sanft herunter bevor systemd stoppt."""
@@ -568,196 +565,6 @@ class OLEDDisplay:
         return '▓' * filled + '░' * (width - filled)
 
 
-# ── BJORKLUND EUCLIDEAN RHYTHM ───────────────────────────────────────────────
-
-class EuclideanRhythm:
-    """
-    Bjorklund Algorithmus — Euklidische Rhythmen.
-
-    Erzeugt maximally-even Rhythmus-Patterns.
-    Beispiel: euclidean(3, 8) → [1,0,0,1,0,0,1,0] (3 Beats auf 8 Slots)
-
-    VERWENDUNG:
-    Sendet rhythmische Gate-Pattern an PD.
-    Kann Noise-Gate, Texture-Gate etc. takten.
-
-    PLAN:
-    - Encoder-Button-Doppelklick → wechselt Euclidean-Modus
-    - In Euclidean-Modus: Encoder 1 = Beats, Encoder 2 = Steps
-    - Sendet periodisch: "noise-gate 0/1;"
-    - BPM aus PD zurücklesen (TODO: PD → Python via [sendto])
-
-    AKTUELL: Algorithmus implementiert, aber nicht mit GPIO verbunden.
-
-    REFERENZ: Toussaint, G. (2005). The Euclidean Algorithm Generates
-              Traditional Musical Rhythms.
-    """
-
-    @staticmethod
-    def bjorklund(beats: int, steps: int) -> list:
-        """
-        Bjorklund-Algorithmus: erzeugt gleichmäßig verteiltes Pattern.
-
-        Args:
-            beats: Anzahl aktiver Beats (k)
-            steps: Gesamtlänge des Patterns (n)
-
-        Returns:
-            Liste aus 0 und 1, Länge=steps
-
-        Beispiele:
-            bjorklund(3, 8) → [1,0,0,1,0,0,1,0]
-            bjorklund(5, 8) → [1,0,1,1,0,1,1,0]
-        """
-        if beats > steps:
-            beats = steps
-        if beats == 0:
-            return [0] * steps
-
-        pattern = [[1]] * beats + [[0]] * (steps - beats)
-        remainder = [x for x in pattern if x == [[0]]]
-        pattern   = [x for x in pattern if x != [[0]]]
-
-        while len(remainder) > 1:
-            if len(remainder) <= len(pattern):
-                pattern = [p + r for p, r in zip(pattern, remainder)]
-                remainder = pattern[len(remainder):]
-                pattern   = pattern[:len(remainder)] if len(remainder) < len(pattern) else pattern
-            else:
-                remainder_new = remainder[len(pattern):]
-                remainder     = [p + r for p, r in zip(pattern, remainder)]
-                pattern       = remainder_new
-                remainder     = pattern
-                pattern       = []
-
-            if not pattern:
-                pattern   = remainder
-                remainder = []
-
-        return [x for sub in pattern + remainder for x in sub]
-
-    def __init__(self, beats=3, steps=8):
-        self.beats   = beats
-        self.steps   = steps
-        self.pattern = self.bjorklund(beats, steps)
-        self.pos     = 0
-        self.bpm     = 120.0  # synchron mit PD
-        log.info(f"Euclidean rhythm: {beats}/{steps} = {self.pattern}")
-
-    def tick(self) -> int:
-        """Gibt nächsten Beat-Wert (0 oder 1) zurück und rückt vor."""
-        val = self.pattern[self.pos]
-        self.pos = (self.pos + 1) % self.steps
-        return val
-
-    def set_pattern(self, beats, steps):
-        """Ändert Pattern und sendet an PD."""
-        self.beats   = max(0, min(beats, steps))
-        self.steps   = max(1, steps)
-        self.pattern = self.bjorklund(self.beats, self.steps)
-        self.pos     = 0
-        log.info(f"New pattern: {self.beats}/{self.steps} = {self.pattern}")
-
-    def step_interval_ms(self) -> float:
-        """Zeitintervall pro Step in ms basierend auf BPM."""
-        return (60000.0 / self.bpm) / (self.steps / 4.0)
-
-
-# ── MARKOV-KETTEN ────────────────────────────────────────────────────────────
-
-class MarkovChain:
-    """
-    Markov-Ketten für harmonische Notenführung.
-
-    AKTUELL: Implementiert, aber nicht an PD gesendet.
-
-    VERWENDUNG:
-    Anstatt PD's [random N] für Notenauswahl:
-    Python berechnet nächste Note via Markov → sendet an PD.
-
-    TODO:
-    PD-Seite: [netreceive 7400] empfängt "note-hint N;" Messages
-    notes.pd: r note-hint → direkt als Hz-Override verwenden
-    Dafür: Chords_Scales ersetzen durch PD-[r note-hint] → mtof → osc~
-
-    ÜBERGANGSMATRIX (C-Pentatonik, Indizes 0-7):
-    Kleine Schritte sind wahrscheinlicher als Sprünge.
-    P(same) = 0.15, P(±1) = 0.30 each, P(±2) = 0.12 each, P(skip) = rest
-
-    SKALEN:
-    PENTATONIK:   MIDI [60, 62, 64, 67, 69, 72, 74, 76]
-    MOLL:         MIDI [57, 60, 62, 64, 65, 67, 69, 72]
-    LYDISCH:      MIDI [60, 62, 64, 66, 67, 69, 71, 72]
-    DORISCH:      MIDI [62, 64, 65, 67, 69, 71, 72, 74]
-    """
-
-    SCALES = {
-        'pent': [60, 62, 64, 67, 69, 72, 74, 76],
-        'min':  [57, 60, 62, 64, 65, 67, 69, 72],
-        'lydi': [60, 62, 64, 66, 67, 69, 71, 72],
-        'dori': [62, 64, 65, 67, 69, 71, 72, 74],
-    }
-
-    # Übergangswahrscheinlichkeiten: Index-Differenz → Wahrscheinlichkeit
-    # Summiert zu 1.0 (normiert)
-    TRANSITIONS = {
-        0:  0.10,   # gleiche Note
-        1:  0.28,   # +1 Step
-       -1:  0.28,   # -1 Step
-        2:  0.12,   # +2 Steps
-       -2:  0.12,   # -2 Steps
-        3:  0.05,   # +3 Steps
-       -3:  0.05,   # -3 Steps
-    }
-
-    def __init__(self, scale='pent'):
-        self.scale    = self.SCALES.get(scale, self.SCALES['pent'])
-        self.n        = len(self.scale)
-        self.pos      = self.n // 2    # Start in der Mitte
-        self._build_matrix()
-        log.info(f"Markov chain: scale={scale}, {self.n} notes")
-
-    def _build_matrix(self):
-        """Baut Übergangsmatrix aus TRANSITIONS-Dict."""
-        import random
-        self.matrix = []
-        for i in range(self.n):
-            row = []
-            total = 0.0
-            for j in range(self.n):
-                diff = j - i
-                p = self.TRANSITIONS.get(diff, 0.0)
-                row.append(p)
-                total += p
-            # Normierung (fehlende Wahrscheinlichkeit auf Mitte verteilen)
-            if total < 1.0:
-                row[self.n // 2] += (1.0 - total)
-            self.matrix.append(row)
-
-    def next_note(self) -> int:
-        """Gibt nächste MIDI-Note via Markov zurück."""
-        import random
-        probs = self.matrix[self.pos]
-        r = random.random()
-        cumulative = 0.0
-        for j, p in enumerate(probs):
-            cumulative += p
-            if r <= cumulative:
-                self.pos = j
-                return self.scale[j]
-        self.pos = self.n // 2
-        return self.scale[self.pos]
-
-    def set_scale(self, scale_name):
-        """Wechselt Skala und baut Matrix neu."""
-        if scale_name in self.SCALES:
-            self.scale = self.SCALES[scale_name]
-            self.n     = len(self.scale)
-            self.pos   = self.n // 2
-            self._build_matrix()
-            log.info(f"Markov scale → {scale_name}")
-
-
 class PDListener:
     """Lauscht auf UDP-Nachrichten von Pure Data (Port 7401)."""
 
@@ -842,7 +649,6 @@ class ShiftKO:
     POLLING-STRATEGIE:
     - Encoder:  Interrupt-basiert (kein Polling nötig sobald GPIO aktiv)
     - ADC/Fader: 60 Hz Polling (16ms) — bei 50Hz Last zu hoch → 30Hz
-    - Euclidean: Timer-Thread, Interval aus BPM berechnet
     - OLED: 10 Hz Refresh (100ms)
     - HP-Detect: Interrupt (kein Polling)
 
@@ -858,8 +664,6 @@ class ShiftKO:
         self.touch   = TouchSensor(self.pd)
         self.hp      = HPDetect(self.pd)
         self.oled    = OLEDDisplay()
-        self.markov  = MarkovChain('pent')
-        self.eucl    = EuclideanRhythm(3, 8)
         self.buttons = ButtonArray(self.pd)
         self.pd_listener = PDListener(self.oled)
 
@@ -883,12 +687,7 @@ class ShiftKO:
         """
         time.sleep(0.5)  # Warten bis PD geladen hat
         self.pd.send('transport',      1)
-        self.pd.send('root-hz',    261.63)
-        self.pd.send('drone-gate',     1)
-        self.pd.send('notes-gate',     1)
-        self.pd.send('noise-gate',     1)
-        self.pd.send('texture-gate',   1)
-        self.pd.send('headphone-mode', 0)
+        self.pd.send('root-hz',    256)
         self.pd.send('whole_time',  2000)
         self.pd.send('randomize')
         log.info("Initial state sent to PD")
@@ -922,20 +721,6 @@ class ShiftKO:
             self.oled._draw()
             time.sleep(0.1)  # 10 Hz
 
-    def _euclidean_loop(self):
-        """
-        Euclidean Rhythm Gate-Loop.
-        TODO: BPM aus PD lesen (via OSC oder Datei).
-        Aktuell: hardcoded 120 BPM.
-        """
-        while self.running:
-            beat = self.eucl.tick()
-            # TODO: Euclidean takt welchen Layer?
-            # Idee: noise-gate via Euclidean, Drone/Notes freistehend
-            # self.pd.send('noise-gate', beat)
-            interval = self.eucl.step_interval_ms() / 1000.0
-            time.sleep(interval)
-
     def start(self):
         """Startet alle Threads und Haupt-Loop."""
         self.running = True
@@ -951,10 +736,6 @@ class ShiftKO:
         # OLED (TODO: aktivieren wenn luma.oled installiert)
         # t_oled = threading.Thread(target=self._oled_loop, daemon=True)
         # t_oled.start()
-
-        # Euclidean (TODO: BPM sync implementieren)
-        # t_eucl = threading.Thread(target=self._euclidean_loop, daemon=True)
-        # t_eucl.start()
 
         # PD Listener starten
         t_listener = threading.Thread(target=self.pd_listener.listen, daemon=True)
