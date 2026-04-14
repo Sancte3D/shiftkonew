@@ -291,13 +291,14 @@ class ButtonArray:
 
     TODO für Scale-Select:
     Wenn Skala gewechselt wird, soll auch root-hz geändert werden:
-    pent → root-hz 261.63  (C4)
-    min  → root-hz 220.0   (A3)
-    lydi → root-hz 261.63  (C4, aber #4)
+    pent → root-hz 256
+    min  → root-hz 288
+    lydi → root-hz 320
     """
 
-    def __init__(self, pd: PDSender):
+    def __init__(self, pd: PDSender, oled):
         self.pd = pd
+        self.oled = oled
         self.states = {pin: False for pin in BUTTON_PINS}
         self.transport_state = 1  # Startet aktiv (synced mit PD loadbang)
 
@@ -330,6 +331,7 @@ class ButtonArray:
             self.pd.send('pelog-w', 0)
             self.pd.send('safir16-w', 0)
             self.pd.send('root-hz', 256)
+            self.oled.update(scale_label='COSMIC')
             log.info("Preset → Cosmic (C4)")
 
         elif action == 'min':
@@ -341,6 +343,7 @@ class ButtonArray:
             self.pd.send('pelog-w', 0)
             self.pd.send('safir16-w', 0)
             self.pd.send('root-hz', 288)
+            self.oled.update(scale_label='HOPEFUL')
             log.info("Preset → Hopeful (D4)")
 
         elif action == 'lydi':
@@ -352,6 +355,7 @@ class ButtonArray:
             self.pd.send('pelog-w', 0)
             self.pd.send('safir16-w', 0)
             self.pd.send('root-hz', 320)
+            self.oled.update(scale_label='WONDER')
             log.info("Preset → Wonder (E4)")
 
 
@@ -436,12 +440,12 @@ class HPDetect:
                           bouncetime=100)
 
     BEI HP-INSERT:
-    1. headphone-mode 1 → PD wechselt auf binaural
+    1. Optionales Status-Flag an PD senden (falls Patch es verwendet)
     2. Lautsprecher-Amp (MAX98357A via GPIO) ausschalten → Strom sparen
        TODO: MAX98357A SD-Pin (Shutdown) → GPIO → LOW = Amp aus
 
     BEI HP-REMOVE:
-    1. headphone-mode 0 → PD wechselt auf Speaker
+    1. Optionales Status-Flag zurücksetzen (falls Patch es verwendet)
     2. MAX98357A wieder aktivieren
     """
 
@@ -466,7 +470,7 @@ class HPDetect:
         # hp_inserted = (state == 0)  # LOW = HP eingesteckt (Pull-up)
         # if hp_inserted != self.hp_in:
         #     self.hp_in = hp_inserted
-        #     self.pd.send('headphone-mode', 1 if hp_inserted else 0)
+        #     self.pd.send('hp-state', 1 if hp_inserted else 0)
         #     # MAX98357A Amp:
         #     # GPIO.output(self.amp_pin, GPIO.LOW if hp_inserted else GPIO.HIGH)
         #     log.info(f"HP {'inserted' if hp_inserted else 'removed'}")
@@ -574,39 +578,6 @@ class PDListener:
         self.sock.bind(('127.0.0.1', port))
         self.sock.settimeout(1.0)
         self.running = True
-        self.weights = {
-            'cosmic_w': 0.0,
-            'wonder_w': 0.0,
-            'hopeful_w': 0.0,
-            'koto_w': 0.0,
-            'raga_w': 0.0,
-            'pelog_w': 0.0,
-            'safir16_w': 0.0,
-        }
-        self.current_scale_key = 'cosmic_w'
-        self.switch_margin = 10.0
-
-    def _update_scale_label(self):
-        label_map = {
-            'cosmic_w': 'COSMIC',
-            'wonder_w': 'WONDER',
-            'hopeful_w': 'HOPEFUL',
-            'koto_w': 'KOTO',
-            'raga_w': 'RAGA',
-            'pelog_w': 'PELOG',
-            'safir16_w': 'SAFIR16',
-        }
-        dominant = max(self.weights, key=lambda k: self.weights[k])
-        current_val = self.weights.get(self.current_scale_key, 0.0)
-        dominant_val = self.weights.get(dominant, 0.0)
-
-        # Hysteresis: only switch if the new leader is clearly ahead.
-        if dominant != self.current_scale_key:
-            if (dominant_val - current_val) < self.switch_margin:
-                return
-            self.current_scale_key = dominant
-
-        self.oled.update(scale_label=label_map[self.current_scale_key])
 
     def listen(self):
         log.info(f"Listening for PD updates on port {self.sock.getsockname()[1]}")
@@ -621,9 +592,6 @@ class PDListener:
                         hz_val = float(val)
                         self.oled.update(root_hz=hz_val)
                         log.debug(f"PD update: root_hz={hz_val}")
-                    elif key in self.weights:
-                        self.weights[key] = float(val)
-                        self._update_scale_label()
             except socket.timeout:
                 continue
             except OSError:
@@ -664,7 +632,7 @@ class ShiftKO:
         self.touch   = TouchSensor(self.pd)
         self.hp      = HPDetect(self.pd)
         self.oled    = OLEDDisplay()
-        self.buttons = ButtonArray(self.pd)
+        self.buttons = ButtonArray(self.pd, self.oled)
         self.pd_listener = PDListener(self.oled)
 
         # Encoder für BPM, Mood, Dense
@@ -710,8 +678,10 @@ class ShiftKO:
                     self.pd.send(pd_name, round(val, 3))
                     last_sent[ch] = val
 
-                    # OLED update (TODO: mapping zu Display-Feldern)
-                    # self.oled.update(**{pd_name.replace('-',''): val})
+                    # OLED update with explicit bridge mapping.
+                    oled_key = 'space' if pd_name == 'reverb-room' else pd_name.split('-')[0]
+                    if oled_key in self.oled.state:
+                        self.oled.update(**{oled_key: val})
 
             time.sleep(1.0 / POLL_HZ)
 
@@ -777,12 +747,12 @@ class ShiftKO:
             self.pd.send('bpm', int(72 + 48 * x))
             self.pd.send('mood-raw', round(y, 3))
 
-            # Gates and timing
+            # Timing / gating control (matches active receivers in PD patches)
             self.pd.send('drone-gate', 1)
             self.pd.send('notes-gate', 1)
             self.pd.send('noise-gate', 1 if (phase % 4) != 0 else 0)
             self.pd.send('texture-gate', 1)
-            self.pd.send('headphone-mode', 1 if (phase % 8) >= 4 else 0)
+            self.pd.send('macro-gate', 1)
             self.pd.send('whole_time', int(1500 + 2600 * (1.0 - y)))
             if phase % 6 == 0:
                 self.pd.send('randomize')
