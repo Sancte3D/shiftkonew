@@ -24,9 +24,9 @@
 #X obj 125 280 s reverb-room;
 #X obj 160 150 vsl 18 120 0.001 0.75 1 0.4 - - Vol -2 -8 0 8 -262144 -1 -1;
 #X obj 160 280 s master-vol;
-#X obj 220 150 tgl 22 1 - - Play -2 -8 0 9 -262144 -1 -1 1;
+#X obj 220 150 tgl 22 1 empty empty Play -2 -8 0 9 -262144 -1 -1 1;
 #X obj 220 185 s transport;
-#X obj 260 150 tgl 20 0 - - HP -2 -8 0 8 -262144 -1 -1 0;
+#X obj 260 150 tgl 20 0 empty empty HP -2 -8 0 8 -262144 -1 -1 0;
 #X obj 260 185 s deprecated-headphone-mode;
 #X obj 220 215 bng 18 250 50 - - W -2 -8 0 8 -262144 -1 -1;
 #X obj 245 215 bng 18 250 50 - - P -2 -8 0 8 -262144 -1 -1;
