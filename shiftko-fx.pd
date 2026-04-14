@@ -21,8 +21,8 @@
 #X obj 200 178 *~;
 #X obj 100 220 +~;
 #X obj 100 250 +~;
-#X obj 300 250 else/eq~ 2000 -12 2;
-#X obj 300 278 *~ 0;
+#X obj 300 250 bp~ 2000 8;
+#X obj 300 278 *~ 0.25;
 #X obj 100 278 +~;
 #X obj 100 315 lop~;
 #X obj 100 345 lop~;
@@ -133,7 +133,9 @@
 #X connect 104 0 101 0;
 #X connect 20 0 21 0;
 #X connect 15 0 21 1;
-#X connect 21 0 24 0;
+#X connect 21 0 22 0;
+#X connect 22 0 23 0;
+#X connect 23 0 24 0;
 #X connect 27 0 28 0;
 #X connect 28 0 29 0;
 #X connect 29 0 24 1;
