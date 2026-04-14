@@ -1,0 +1,17 @@
+[Unit]
+Description=Shift K.O. Generative Sound Engine
+After=network.target sound.target
+Wants=sound.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/shiftko
+ExecStart=/usr/bin/python3 /home/pi/shiftko/shiftko-hw.py
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

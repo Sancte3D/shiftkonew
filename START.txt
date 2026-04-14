@@ -1,0 +1,22 @@
+SHIFT K.O. v11 — Ambient
+=========================
+
+ALLE 5 .pd DATEIEN IM GLEICHEN ORDNER:
+  shiftko-main.pd   ← DIESE öffnen
+  shiftko-drone.pd
+  shiftko-notes.pd
+  shiftko-texture.pd
+  shiftko-fx.pd
+
+STARTEN:
+  1. shiftko-main.pd öffnen
+  2. Media → Audio On (Strg+/)
+  3. Warten — loadbang initialisiert alles automatisch:
+     • Drone startet sofort
+     • 4 Melodiestimmen beginnen nach 12–35s zufällig
+  4. Fader: Drone / Bright / Space / Vol / Texture
+  5. Rnd: neue zufällige Zeitintervalle für alle 4 Stimmen
+  6. N1–N4: MIDI-Noten (Standard: 60 64 67 72 = C E G C)
+
+FÜR MEHR DRONE: Drone-Fader weiter hochschieben.
+FÜR SOFORTIGE NOTEN: Rnd klicken (startet alle Metros neu).
