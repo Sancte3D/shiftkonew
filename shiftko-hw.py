@@ -574,12 +574,19 @@ class PDListener:
 
     def __init__(self, oled, port=7401):
         self.oled = oled
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.sock.bind(('127.0.0.1', port))
-        self.sock.settimeout(1.0)
-        self.running = True
+        self.sock = None
+        self.running = False
+        try:
+            self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            self.sock.bind(('127.0.0.1', port))
+            self.sock.settimeout(1.0)
+            self.running = True
+        except OSError as e:
+            log.error(f"PD listener disabled (port {port} unavailable): {e}")
 
     def listen(self):
+        if not self.sock:
+            return
         log.info(f"Listening for PD updates on port {self.sock.getsockname()[1]}")
         while self.running:
             try:
@@ -679,7 +686,12 @@ class ShiftKO:
                     last_sent[ch] = val
 
                     # OLED update with explicit bridge mapping.
-                    oled_key = 'space' if pd_name == 'reverb-room' else pd_name.split('-')[0]
+                    if pd_name == 'reverb-room':
+                        oled_key = 'space'
+                    elif pd_name == 'master-vol':
+                        oled_key = 'vol'
+                    else:
+                        oled_key = pd_name.split('-')[0]
                     if oled_key in self.oled.state:
                         self.oled.update(**{oled_key: val})
 
