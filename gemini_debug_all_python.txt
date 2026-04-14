@@ -1,34 +1,53 @@
-GEMINI DEBUG DUMP - ALL PYTHON FILES
+GEMINI DEBUG DUMP — ALLE PYTHON-DATEIEN IM REPOSITORY (reiner Text)
+Generiert aus den aktuellen Quelldateien. Stand: siehe Git-Commit.
 
 ================================================================================
-FILE: patch.py
+DATEI: patch.py
 ================================================================================
-import os
+from pathlib import Path
+import shutil
+import sys
 
-file_path = 'Chords_Scales.pd'
+ROOT = Path(__file__).resolve().parent
+file_path = ROOT / "Chords_Scales.pd"
 
-with open(file_path, 'r') as f:
-    content = f.read()
+if not file_path.exists():
+    print(f"❌ Datei nicht gefunden: {file_path}")
+    sys.exit(1)
 
-# 1. Inlets in globale Receiver umwandeln (x-Koordinaten aus deiner Datei)
-content = content.replace('#X obj 200 30 inlet;', '#X obj 200 30 r cosmic-w;')
-content = content.replace('#X obj 275 30 inlet;', '#X obj 275 30 r wonder-w;')
-content = content.replace('#X obj 350 30 inlet;', '#X obj 350 30 r hopeful-w;')
-content = content.replace('#X obj 425 30 inlet;', '#X obj 425 30 r koto-w;')
-content = content.replace('#X obj 500 30 inlet;', '#X obj 500 30 r raga-w;')
-content = content.replace('#X obj 575 30 inlet;', '#X obj 575 30 r pelog-w;')
-content = content.replace('#X obj 650 30 inlet;', '#X obj 650 30 r safir16-w;')
+content = file_path.read_text()
+original = content
 
-# 2. Mathe-Bug beheben: Skalierung entfernen, aber PD-Inlets (Kabel) bewahren
-content = content.replace('expr $f1/$f2*100;', 'expr $f1+($f2*0);')
+replacements = [
+    ("#X obj 200 30 inlet;", "#X obj 200 30 r cosmic-w;"),
+    ("#X obj 275 30 inlet;", "#X obj 275 30 r wonder-w;"),
+    ("#X obj 350 30 inlet;", "#X obj 350 30 r hopeful-w;"),
+    ("#X obj 425 30 inlet;", "#X obj 425 30 r koto-w;"),
+    ("#X obj 500 30 inlet;", "#X obj 500 30 r raga-w;"),
+    ("#X obj 575 30 inlet;", "#X obj 575 30 r pelog-w;"),
+    ("#X obj 650 30 inlet;", "#X obj 650 30 r safir16-w;"),
+    ("expr $f1/$f2*100;", "expr $f1+($f2*0);"),
+]
 
-with open(file_path, 'w') as f:
-    f.write(content)
+applied = 0
+for src, dst in replacements:
+    if src in content:
+        content = content.replace(src, dst)
+        applied += 1
 
-print("✅ Chords_Scales.pd wurde erfolgreich und sicher gepatcht!")
+if content == original:
+    print("ℹ️ Keine Änderungen nötig.")
+    sys.exit(0)
 
-================================================================================
-FILE: shiftko-hw.py
+backup_path = file_path.with_suffix(".pd.bak")
+shutil.copyfile(file_path, backup_path)
+file_path.write_text(content)
+
+print(f"✅ Patch angewendet ({applied} Ersetzungen). Backup: {backup_path.name}")
+
+
+
+DATEI: shiftko-hw.py
 ================================================================================
 #!/usr/bin/env python3
 """
@@ -323,13 +342,14 @@ class ButtonArray:
 
     TODO für Scale-Select:
     Wenn Skala gewechselt wird, soll auch root-hz geändert werden:
-    pent → root-hz 261.63  (C4)
-    min  → root-hz 220.0   (A3)
-    lydi → root-hz 261.63  (C4, aber #4)
+    pent → root-hz 256
+    min  → root-hz 288
+    lydi → root-hz 320
     """
 
-    def __init__(self, pd: PDSender):
+    def __init__(self, pd: PDSender, oled):
         self.pd = pd
+        self.oled = oled
         self.states = {pin: False for pin in BUTTON_PINS}
         self.transport_state = 1  # Startet aktiv (synced mit PD loadbang)
 
@@ -362,6 +382,7 @@ class ButtonArray:
             self.pd.send('pelog-w', 0)
             self.pd.send('safir16-w', 0)
             self.pd.send('root-hz', 256)
+            self.oled.update(scale_label='COSMIC')
             log.info("Preset → Cosmic (C4)")
 
         elif action == 'min':
@@ -373,6 +394,7 @@ class ButtonArray:
             self.pd.send('pelog-w', 0)
             self.pd.send('safir16-w', 0)
             self.pd.send('root-hz', 288)
+            self.oled.update(scale_label='HOPEFUL')
             log.info("Preset → Hopeful (D4)")
 
         elif action == 'lydi':
@@ -384,6 +406,7 @@ class ButtonArray:
             self.pd.send('pelog-w', 0)
             self.pd.send('safir16-w', 0)
             self.pd.send('root-hz', 320)
+            self.oled.update(scale_label='WONDER')
             log.info("Preset → Wonder (E4)")
 
 
@@ -435,16 +458,13 @@ class TouchSensor:
         pass
 
     def _reset(self):
-        """Setzt alle Gates und Levels auf Default."""
-        self.pd.send('drone-gate', 1)
-        self.pd.send('notes-gate', 1)
-        self.pd.send('noise-gate', 1)
-        self.pd.send('drone-level', 0.75)
-        self.pd.send('notes-level', 0.55)
-        self.pd.send('noise-level', 0.35)
-        self.pd.send('reverb-room', 0.55)
-        self.pd.send('master-vol',  0.50)
-        log.info("Touch long → RESET")
+        """
+        Sanfter Reset ohne harte Pegelspruenge.
+        Triggert nur musikalische Zustandswechsel in PD.
+        """
+        self.pd.send('macro-gate', 0)
+        self.pd.send('randomize')
+        log.info("Touch long -> gentle reset")
 
     def _shutdown(self):
         """Fährt PD sanft herunter bevor systemd stoppt."""
@@ -471,12 +491,12 @@ class HPDetect:
                           bouncetime=100)
 
     BEI HP-INSERT:
-    1. headphone-mode 1 → PD wechselt auf binaural
+    1. Optionales Status-Flag an PD senden (falls Patch es verwendet)
     2. Lautsprecher-Amp (MAX98357A via GPIO) ausschalten → Strom sparen
        TODO: MAX98357A SD-Pin (Shutdown) → GPIO → LOW = Amp aus
 
     BEI HP-REMOVE:
-    1. headphone-mode 0 → PD wechselt auf Speaker
+    1. Optionales Status-Flag zurücksetzen (falls Patch es verwendet)
     2. MAX98357A wieder aktivieren
     """
 
@@ -501,7 +521,7 @@ class HPDetect:
         # hp_inserted = (state == 0)  # LOW = HP eingesteckt (Pull-up)
         # if hp_inserted != self.hp_in:
         #     self.hp_in = hp_inserted
-        #     self.pd.send('headphone-mode', 1 if hp_inserted else 0)
+        #     self.pd.send('hp-state', 1 if hp_inserted else 0)
         #     # MAX98357A Amp:
         #     # GPIO.output(self.amp_pin, GPIO.LOW if hp_inserted else GPIO.HIGH)
         #     log.info(f"HP {'inserted' if hp_inserted else 'removed'}")
@@ -600,240 +620,24 @@ class OLEDDisplay:
         return '▓' * filled + '░' * (width - filled)
 
 
-# ── BJORKLUND EUCLIDEAN RHYTHM ───────────────────────────────────────────────
-
-class EuclideanRhythm:
-    """
-    Bjorklund Algorithmus — Euklidische Rhythmen.
-
-    Erzeugt maximally-even Rhythmus-Patterns.
-    Beispiel: euclidean(3, 8) → [1,0,0,1,0,0,1,0] (3 Beats auf 8 Slots)
-
-    VERWENDUNG:
-    Sendet rhythmische Gate-Pattern an PD.
-    Kann Noise-Gate, Texture-Gate etc. takten.
-
-    PLAN:
-    - Encoder-Button-Doppelklick → wechselt Euclidean-Modus
-    - In Euclidean-Modus: Encoder 1 = Beats, Encoder 2 = Steps
-    - Sendet periodisch: "noise-gate 0/1;"
-    - BPM aus PD zurücklesen (TODO: PD → Python via [sendto])
-
-    AKTUELL: Algorithmus implementiert, aber nicht mit GPIO verbunden.
-
-    REFERENZ: Toussaint, G. (2005). The Euclidean Algorithm Generates
-              Traditional Musical Rhythms.
-    """
-
-    @staticmethod
-    def bjorklund(beats: int, steps: int) -> list:
-        """
-        Bjorklund-Algorithmus: erzeugt gleichmäßig verteiltes Pattern.
-
-        Args:
-            beats: Anzahl aktiver Beats (k)
-            steps: Gesamtlänge des Patterns (n)
-
-        Returns:
-            Liste aus 0 und 1, Länge=steps
-
-        Beispiele:
-            bjorklund(3, 8) → [1,0,0,1,0,0,1,0]
-            bjorklund(5, 8) → [1,0,1,1,0,1,1,0]
-        """
-        if beats > steps:
-            beats = steps
-        if beats == 0:
-            return [0] * steps
-
-        pattern = [[1]] * beats + [[0]] * (steps - beats)
-        remainder = [x for x in pattern if x == [[0]]]
-        pattern   = [x for x in pattern if x != [[0]]]
-
-        while len(remainder) > 1:
-            if len(remainder) <= len(pattern):
-                pattern = [p + r for p, r in zip(pattern, remainder)]
-                remainder = pattern[len(remainder):]
-                pattern   = pattern[:len(remainder)] if len(remainder) < len(pattern) else pattern
-            else:
-                remainder_new = remainder[len(pattern):]
-                remainder     = [p + r for p, r in zip(pattern, remainder)]
-                pattern       = remainder_new
-                remainder     = pattern
-                pattern       = []
-
-            if not pattern:
-                pattern   = remainder
-                remainder = []
-
-        return [x for sub in pattern + remainder for x in sub]
-
-    def __init__(self, beats=3, steps=8):
-        self.beats   = beats
-        self.steps   = steps
-        self.pattern = self.bjorklund(beats, steps)
-        self.pos     = 0
-        self.bpm     = 120.0  # synchron mit PD
-        log.info(f"Euclidean rhythm: {beats}/{steps} = {self.pattern}")
-
-    def tick(self) -> int:
-        """Gibt nächsten Beat-Wert (0 oder 1) zurück und rückt vor."""
-        val = self.pattern[self.pos]
-        self.pos = (self.pos + 1) % self.steps
-        return val
-
-    def set_pattern(self, beats, steps):
-        """Ändert Pattern und sendet an PD."""
-        self.beats   = max(0, min(beats, steps))
-        self.steps   = max(1, steps)
-        self.pattern = self.bjorklund(self.beats, self.steps)
-        self.pos     = 0
-        log.info(f"New pattern: {self.beats}/{self.steps} = {self.pattern}")
-
-    def step_interval_ms(self) -> float:
-        """Zeitintervall pro Step in ms basierend auf BPM."""
-        return (60000.0 / self.bpm) / (self.steps / 4.0)
-
-
-# ── MARKOV-KETTEN ────────────────────────────────────────────────────────────
-
-class MarkovChain:
-    """
-    Markov-Ketten für harmonische Notenführung.
-
-    AKTUELL: Implementiert, aber nicht an PD gesendet.
-
-    VERWENDUNG:
-    Anstatt PD's [random N] für Notenauswahl:
-    Python berechnet nächste Note via Markov → sendet an PD.
-
-    TODO:
-    PD-Seite: [netreceive 7400] empfängt "note-hint N;" Messages
-    notes.pd: r note-hint → direkt als Hz-Override verwenden
-    Dafür: Chords_Scales ersetzen durch PD-[r note-hint] → mtof → osc~
-
-    ÜBERGANGSMATRIX (C-Pentatonik, Indizes 0-7):
-    Kleine Schritte sind wahrscheinlicher als Sprünge.
-    P(same) = 0.15, P(±1) = 0.30 each, P(±2) = 0.12 each, P(skip) = rest
-
-    SKALEN:
-    PENTATONIK:   MIDI [60, 62, 64, 67, 69, 72, 74, 76]
-    MOLL:         MIDI [57, 60, 62, 64, 65, 67, 69, 72]
-    LYDISCH:      MIDI [60, 62, 64, 66, 67, 69, 71, 72]
-    DORISCH:      MIDI [62, 64, 65, 67, 69, 71, 72, 74]
-    """
-
-    SCALES = {
-        'pent': [60, 62, 64, 67, 69, 72, 74, 76],
-        'min':  [57, 60, 62, 64, 65, 67, 69, 72],
-        'lydi': [60, 62, 64, 66, 67, 69, 71, 72],
-        'dori': [62, 64, 65, 67, 69, 71, 72, 74],
-    }
-
-    # Übergangswahrscheinlichkeiten: Index-Differenz → Wahrscheinlichkeit
-    # Summiert zu 1.0 (normiert)
-    TRANSITIONS = {
-        0:  0.10,   # gleiche Note
-        1:  0.28,   # +1 Step
-       -1:  0.28,   # -1 Step
-        2:  0.12,   # +2 Steps
-       -2:  0.12,   # -2 Steps
-        3:  0.05,   # +3 Steps
-       -3:  0.05,   # -3 Steps
-    }
-
-    def __init__(self, scale='pent'):
-        self.scale    = self.SCALES.get(scale, self.SCALES['pent'])
-        self.n        = len(self.scale)
-        self.pos      = self.n // 2    # Start in der Mitte
-        self._build_matrix()
-        log.info(f"Markov chain: scale={scale}, {self.n} notes")
-
-    def _build_matrix(self):
-        """Baut Übergangsmatrix aus TRANSITIONS-Dict."""
-        import random
-        self.matrix = []
-        for i in range(self.n):
-            row = []
-            total = 0.0
-            for j in range(self.n):
-                diff = j - i
-                p = self.TRANSITIONS.get(diff, 0.0)
-                row.append(p)
-                total += p
-            # Normierung (fehlende Wahrscheinlichkeit auf Mitte verteilen)
-            if total < 1.0:
-                row[self.n // 2] += (1.0 - total)
-            self.matrix.append(row)
-
-    def next_note(self) -> int:
-        """Gibt nächste MIDI-Note via Markov zurück."""
-        import random
-        probs = self.matrix[self.pos]
-        r = random.random()
-        cumulative = 0.0
-        for j, p in enumerate(probs):
-            cumulative += p
-            if r <= cumulative:
-                self.pos = j
-                return self.scale[j]
-        self.pos = self.n // 2
-        return self.scale[self.pos]
-
-    def set_scale(self, scale_name):
-        """Wechselt Skala und baut Matrix neu."""
-        if scale_name in self.SCALES:
-            self.scale = self.SCALES[scale_name]
-            self.n     = len(self.scale)
-            self.pos   = self.n // 2
-            self._build_matrix()
-            log.info(f"Markov scale → {scale_name}")
-
-
 class PDListener:
     """Lauscht auf UDP-Nachrichten von Pure Data (Port 7401)."""
 
     def __init__(self, oled, port=7401):
         self.oled = oled
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.sock.bind(('127.0.0.1', port))
-        self.sock.settimeout(1.0)
-        self.running = True
-        self.weights = {
-            'cosmic_w': 0.0,
-            'wonder_w': 0.0,
-            'hopeful_w': 0.0,
-            'koto_w': 0.0,
-            'raga_w': 0.0,
-            'pelog_w': 0.0,
-            'safir16_w': 0.0,
-        }
-        self.current_scale_key = 'cosmic_w'
-        self.switch_margin = 10.0
-
-    def _update_scale_label(self):
-        label_map = {
-            'cosmic_w': 'COSMIC',
-            'wonder_w': 'WONDER',
-            'hopeful_w': 'HOPEFUL',
-            'koto_w': 'KOTO',
-            'raga_w': 'RAGA',
-            'pelog_w': 'PELOG',
-            'safir16_w': 'SAFIR16',
-        }
-        dominant = max(self.weights, key=lambda k: self.weights[k])
-        current_val = self.weights.get(self.current_scale_key, 0.0)
-        dominant_val = self.weights.get(dominant, 0.0)
-
-        # Hysteresis: only switch if the new leader is clearly ahead.
-        if dominant != self.current_scale_key:
-            if (dominant_val - current_val) < self.switch_margin:
-                return
-            self.current_scale_key = dominant
-
-        self.oled.update(scale_label=label_map[self.current_scale_key])
+        self.sock = None
+        self.running = False
+        try:
+            self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            self.sock.bind(('127.0.0.1', port))
+            self.sock.settimeout(1.0)
+            self.running = True
+        except OSError as e:
+            log.error(f"PD listener disabled (port {port} unavailable): {e}")
 
     def listen(self):
+        if not self.sock:
+            return
         log.info(f"Listening for PD updates on port {self.sock.getsockname()[1]}")
         while self.running:
             try:
@@ -846,9 +650,6 @@ class PDListener:
                         hz_val = float(val)
                         self.oled.update(root_hz=hz_val)
                         log.debug(f"PD update: root_hz={hz_val}")
-                    elif key in self.weights:
-                        self.weights[key] = float(val)
-                        self._update_scale_label()
             except socket.timeout:
                 continue
             except OSError:
@@ -874,7 +675,6 @@ class ShiftKO:
     POLLING-STRATEGIE:
     - Encoder:  Interrupt-basiert (kein Polling nötig sobald GPIO aktiv)
     - ADC/Fader: 60 Hz Polling (16ms) — bei 50Hz Last zu hoch → 30Hz
-    - Euclidean: Timer-Thread, Interval aus BPM berechnet
     - OLED: 10 Hz Refresh (100ms)
     - HP-Detect: Interrupt (kein Polling)
 
@@ -890,9 +690,7 @@ class ShiftKO:
         self.touch   = TouchSensor(self.pd)
         self.hp      = HPDetect(self.pd)
         self.oled    = OLEDDisplay()
-        self.markov  = MarkovChain('pent')
-        self.eucl    = EuclideanRhythm(3, 8)
-        self.buttons = ButtonArray(self.pd)
+        self.buttons = ButtonArray(self.pd, self.oled)
         self.pd_listener = PDListener(self.oled)
 
         # Encoder für BPM, Mood, Dense
@@ -915,12 +713,7 @@ class ShiftKO:
         """
         time.sleep(0.5)  # Warten bis PD geladen hat
         self.pd.send('transport',      1)
-        self.pd.send('root-hz',    261.63)
-        self.pd.send('drone-gate',     1)
-        self.pd.send('notes-gate',     1)
-        self.pd.send('noise-gate',     1)
-        self.pd.send('texture-gate',   1)
-        self.pd.send('headphone-mode', 0)
+        self.pd.send('root-hz',    256)
         self.pd.send('whole_time',  2000)
         self.pd.send('randomize')
         log.info("Initial state sent to PD")
@@ -943,8 +736,15 @@ class ShiftKO:
                     self.pd.send(pd_name, round(val, 3))
                     last_sent[ch] = val
 
-                    # OLED update (TODO: mapping zu Display-Feldern)
-                    # self.oled.update(**{pd_name.replace('-',''): val})
+                    # OLED update with explicit bridge mapping.
+                    if pd_name == 'reverb-room':
+                        oled_key = 'space'
+                    elif pd_name == 'master-vol':
+                        oled_key = 'vol'
+                    else:
+                        oled_key = pd_name.split('-')[0]
+                    if oled_key in self.oled.state:
+                        self.oled.update(**{oled_key: val})
 
             time.sleep(1.0 / POLL_HZ)
 
@@ -953,20 +753,6 @@ class ShiftKO:
         while self.running:
             self.oled._draw()
             time.sleep(0.1)  # 10 Hz
-
-    def _euclidean_loop(self):
-        """
-        Euclidean Rhythm Gate-Loop.
-        TODO: BPM aus PD lesen (via OSC oder Datei).
-        Aktuell: hardcoded 120 BPM.
-        """
-        while self.running:
-            beat = self.eucl.tick()
-            # TODO: Euclidean takt welchen Layer?
-            # Idee: noise-gate via Euclidean, Drone/Notes freistehend
-            # self.pd.send('noise-gate', beat)
-            interval = self.eucl.step_interval_ms() / 1000.0
-            time.sleep(interval)
 
     def start(self):
         """Startet alle Threads und Haupt-Loop."""
@@ -983,10 +769,6 @@ class ShiftKO:
         # OLED (TODO: aktivieren wenn luma.oled installiert)
         # t_oled = threading.Thread(target=self._oled_loop, daemon=True)
         # t_oled.start()
-
-        # Euclidean (TODO: BPM sync implementieren)
-        # t_eucl = threading.Thread(target=self._euclidean_loop, daemon=True)
-        # t_eucl.start()
 
         # PD Listener starten
         t_listener = threading.Thread(target=self.pd_listener.listen, daemon=True)
@@ -1028,12 +810,12 @@ class ShiftKO:
             self.pd.send('bpm', int(72 + 48 * x))
             self.pd.send('mood-raw', round(y, 3))
 
-            # Gates and timing
+            # Timing / gating control (matches active receivers in PD patches)
             self.pd.send('drone-gate', 1)
             self.pd.send('notes-gate', 1)
             self.pd.send('noise-gate', 1 if (phase % 4) != 0 else 0)
             self.pd.send('texture-gate', 1)
-            self.pd.send('headphone-mode', 1 if (phase % 8) >= 4 else 0)
+            self.pd.send('macro-gate', 1)
             self.pd.send('whole_time', int(1500 + 2600 * (1.0 - y)))
             if phase % 6 == 0:
                 self.pd.send('randomize')
