@@ -69,7 +69,7 @@
 #X obj 540 928 loadbang;
 #X obj 620 900 osc~ 0.003;
 #X obj 620 928 *~ 60;
-#X obj 620 956 snapshot~;
+#X obj 620 956 else/sig2float~;
 #X obj 620 984 pack 0 0;
 #X obj 350 950 *~;
 #X obj 400 950 *~;
@@ -186,8 +186,8 @@
 #X connect 103 0 75 0;
 #X connect 104 0 102 0;
 #X connect 104 0 103 0;
-#X connect 74 0 76 1;
-#X connect 75 0 77 1;
+#X connect 74 0 76 0;
+#X connect 75 0 77 0;
 #X connect 76 0 78 0;
 #X connect 79 0 80 0;
 #X connect 80 0 81 0;
@@ -202,7 +202,6 @@
 #X connect 89 0 90 1;
 #X connect 91 0 92 0;
 #X connect 92 0 93 0;
-#X connect 93 0 94 0;
 #X connect 77 0 95 0;
 #X connect 96 0 78 1;
 #X connect 19 0 102 0;
@@ -211,5 +210,3 @@
 #X connect 67 0 106 0;
 #X connect 105 0 97 0;
 #X connect 106 0 97 0;
-#X connect 107 0 76 0;
-#X connect 107 0 77 0;

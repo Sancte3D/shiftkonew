@@ -1,0 +1,207 @@
+================================================================================
+  SHIFT K.O. — Pure Data Projekt — Vollständige Dokumentation (Stand 2026-04-14)
+================================================================================
+
+1. KURZBESCHREIBUNG
+--------------------------------------------------------------------------------
+Shift K.O. ist ein Ambient-/Drone-Patch für Pure Data (Pd). Es kombiniert
+mehrere Generator-Subpatches (Drone, Noten, Textur, Rauschen), Akkord-/Skalen-
+Logik und einen FX-/Master-Block mit Reverb, Filtern und optionaler
+Kopfhörer-/Binaural-Verarbeitung.
+
+Hauptdatei zum Öffnen: shiftko-main.pd
+
+
+2. ABHÄNGIGKEITEN
+--------------------------------------------------------------------------------
+- Pure Data 0.56 oder neuer (getestet: macOS, Pd-App).
+- Externals: ELSE (Deken-Paket "else").
+
+  In shiftko-main.pd deklariert:
+    declare -lib else;
+    declare -path else;
+    declare -path .;
+
+  Verwendete ELSE-Objekte (Auswahl, nicht abschließend):
+    else/eq~, else/plate.rev~, else/pitch.shift~, else/white~, else/pink~,
+    else/brown~, else/lorenz~, else/sig2float~, ggf. weitere.
+
+Installation: Help → Find externals → "else" installieren → Pd neu starten.
+Optional: ./setup-pd.sh im Projektordner.
+
+
+3. DATEIEN IM PROJEKT — ÜBERSICHT
+--------------------------------------------------------------------------------
+
+3.1 Haupt-Patches (direkt relevant für den Sound)
+  shiftko-main.pd
+    Oberfläche, Loadbang-Initialisierung, Einbindung aller Subpatches,
+    Steuerung (Fader, Gates, Transport, OSC/Net optional).
+
+  shiftko-fx.pd
+    Sammelt Audio per catch~ von drone-bus, note-bus-L/R, note-bus,
+    texture-bus, noise-bus; Gates, Level, Reverb, Master, Transport;
+    Ausgang auf dac~ (Stereo mit Haas-/Delay-Zweig).
+
+  shiftko-drone.pd
+    Drone-Oszillatoren, Modulation, throw~ drone-bus.
+
+  shiftko-notes.pd
+    Vier parallele Stimmen (Chords_Scales), Noten auf note-bus-L/R.
+
+  shiftko-texture.pd
+    Eigene Textur (u. a. Rauschquelle + Filter + pitch.shift~),
+    Ausgang throw~ texture-bus — ohne doppelte catch~ auf note-bus.
+
+  shiftko-noise.pd
+    Rauschtypen, Level, throw~ noise-bus.
+
+  shiftko-chords.pd
+    Von shiftko-main eingebunden; Akkord-/Drone-/Textur-Würfe auf die Busse.
+
+  Chords_Scales.pd
+    Skalen-/Akkord-Logik; wird von shiftko-notes u. a. genutzt.
+
+  shiftko-markov.pd
+    Markov-/Zufallslogik für Skalenwahl (in Chords_Scales eingebunden).
+
+3.2 Große / spezielle Abstractions
+  binauralModeled-ircam.pd
+    Binaural-/HRTF-Pfad (sehr große Datei mit Koeffizienten).
+
+  single_channel_processing.pd
+    Teil der räumlichen Verarbeitung.
+
+  spatialize_stereo_audio_given_coefficients.pd
+    Stereo-Raumfüllung mit Koeffizienten.
+
+  route_biquad_coeffs.pd
+    Hilfsrouting für Biquad-Koeffizienten.
+
+3.3 Weitere Patches (optional / nicht zwingend im Main-Pfad)
+  shiftko-quantizer.pd
+  shiftko-gco.pd
+  shiftko-polyblep.pd
+  shiftko-pedal.pd
+  shiftko-accent.pd
+
+3.4 Hilfen & Skripte
+  audio-selftest.pd
+    Minimaltest: Oszillator → dac~; loadbang triggert "pd dsp 1".
+
+  run-main-mac-speaker.sh, run-main-safe.sh
+    Start von Pd mit typischen Flags (-noadc, Audio-Device, Puffergröße).
+
+  setup-pd.sh
+    Hinweise/Setup für Pd-Externals.
+
+  shiftko-hw.py, patch.py
+    Externe Steuerung/Bridge (je nach Deployment).
+
+  START.txt
+    Kurzstart (ältere Kurzversion).
+
+  DEPENDENCIES.md
+    Abhängigkeiten auf Englisch.
+
+  modeledHRTFData.txt
+    Daten für HRTF/binaural (Referenz).
+
+
+4. START (EMPFOHLENE REIHENFOLGE)
+--------------------------------------------------------------------------------
+  1. ELSE installieren, Pd neu starten.
+  2. shiftko-main.pd öffnen.
+  3. Audio einschalten: Media → Audio ON (oder Strg+/ / Cmd+/).
+  4. Loadbang setzt u. a. transport, Gates, Levels, root-hz, dsp an
+     (siehe Messages an s transport, s drone-gate, …).
+  5. Regler: Drn (Drone), Nts (Notes), Nse (Noise), Spc/Vol, Play-Toggle.
+
+  Kurztest ohne Main: audio-selftest.pd öffnen — sollte einen Ton liefern,
+  wenn OS-Audio und Pd-Ausgang korrekt sind.
+
+
+5. AUDIO-ROUTING (LOGISCH)
+--------------------------------------------------------------------------------
+  Generatoren nutzen throw~ auf benannte Busse:
+    drone-bus, note-bus, note-bus-L, note-bus-R, texture-bus, noise-bus.
+
+  shiftko-fx.pd enthält die zugehörigen catch~ und mischt/gated/reverbiert,
+  skaliert mit master-vol und transport, dann dac~.
+
+  Wichtig: Pro Bus sollte es nicht mehrere konkurrierende catch~ im gleichen
+  Kontext geben, die dieselbe Summation stören — die Textur wurde so
+  angepasst, dass keine zweiten catch~ auf note-bus im Textur-Subpatch
+  liegen (siehe Abschnitt 7).
+
+
+6. STEUERUNG ÜBER send / receive (AUSWAHL)
+--------------------------------------------------------------------------------
+  Im Main-Patch u. a.: bpm, filter-cutoff, reverb-room, drone-level,
+  notes-level, noise-level, texture-level, master-vol, transport,
+  drone-gate, notes-gate, noise-gate, texture-gate, root-hz, …
+
+
+7. BEKANNTE REPARATUREN / DESIGN-ENTSCHEIDUNGEN (CHRONOLOGISCH)
+--------------------------------------------------------------------------------
+  - shiftko-markov.pd: Hot-Inlet-Feedback zu Chords_Scales vermieden
+    (Steuerung auf kalte f-Inlets).
+
+  - binauralModeled-ircam.pd: defekte #X connect-Zeilen bereinigt.
+
+  - shiftko-drone.pd: Steuer-Skalierung mit line statt line~ wo nötig.
+
+  - shiftko-fx.pd: Ausgangspfad bereinigt — fehlerhafte Addition von
+    konstantem Offset (sig~ 1) zur Summe vor dac~ entfernt; doppelte
+    Direktverbindung hip~ → dac~ entfernt; Stereo-Zweig über +~ / Haas
+    beibehalten.
+
+  - shiftko-main.pd: Lorenz-/Filter-Pfade mit sig2float~ statt falscher
+    Signal→Control-Verbindungen; loadbang für dsp; HP-Default für
+    deprecated-headphone-mode angepasst.
+
+  - shiftko-texture.pd: Kein paralleles catch~ mehr auf note-bus / note-bus-L/R;
+    eigene Quelle für texture-bus, um "multiply defined" auf note-bus*
+    zu vermeiden und das Routing stabil zu halten.
+
+  - audio-selftest.pd: loadbang mit Message "pd dsp 1" verbunden.
+
+
+8. KONSOLEN-HINWEISE
+--------------------------------------------------------------------------------
+  "audio signal outlet connected to nonsignal inlet (ignored)"
+    Irgendwo wurde ein ~-Signal mit einem reinen Control-Inlet verbunden.
+    Mit Pd 0.56+ in der Konsole oft mit Objektnamen — gezielt suchen und
+    durch sig2float~, line~ oder korrekte Inlets ersetzen.
+
+  "note-bus / note-bus-L / note-bus-R: multiply defined"
+    Mehrere catch~ oder mehrfache Definition derselben Bus-Summe.
+    Nach der Textur-Änderung sollten diese deutlich seltener oder weg sein.
+
+  "couldn't create else/…"
+    ELSE nicht installiert oder Pfad falsch — Deken + declare prüfen.
+
+
+9. GITHUB / VERSIONIERUNG
+--------------------------------------------------------------------------------
+  Remote-Beispiel (Projekt): origin → github.com (siehe git remote -v).
+
+  Typischer Push nach Änderungen:
+    git checkout main
+    git add -A
+    git status
+    git commit -m "Beschreibung der Änderung"
+    git push origin main
+
+  Hinweis: SSH-Key oder HTTPS-Credentials müssen auf dem Rechner eingerichtet
+  sein; bei "Permission denied" SSH-Key bei GitHub hinterlegen.
+
+
+10. DATEIENDE
+--------------------------------------------------------------------------------
+Diese Datei ist absichtlich als reine .txt gehalten (ohne Markdown),
+für einfaches Lesen in Editor, Mail und Terminal.
+
+================================================================================
+Ende SHIFTKO-DOKUMENTATION-KOMPLETT.txt
+================================================================================

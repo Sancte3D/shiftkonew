@@ -18,8 +18,8 @@
 #X obj 130 258 expr (($f1%max($f2\,1))+max($f2\,1))%max($f2\,1);
 #X floatatom 130 286 4 0 0 0 - - - 0;
 #X obj 130 314 outlet;
-#X connect 1 0 3 0;
-#X connect 2 0 4 0;
+#X connect 1 0 3 1;
+#X connect 2 0 4 1;
 #X connect 0 0 5 0;
 #X connect 5 0 6 0;
 #X connect 6 0 8 0;

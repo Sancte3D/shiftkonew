@@ -26,7 +26,7 @@
 #X obj 160 280 s master-vol;
 #X obj 220 150 tgl 22 1 - - Play -2 -8 0 9 -262144 -1 -1 1;
 #X obj 220 185 s transport;
-#X obj 260 150 tgl 20 0 - - HP -2 -8 0 8 -262144 -1 -1 1;
+#X obj 260 150 tgl 20 0 - - HP -2 -8 0 8 -262144 -1 -1 0;
 #X obj 260 185 s deprecated-headphone-mode;
 #X obj 220 215 bng 18 250 50 - - W -2 -8 0 8 -262144 -1 -1;
 #X obj 245 215 bng 18 250 50 - - P -2 -8 0 8 -262144 -1 -1;
@@ -131,7 +131,7 @@
 #X obj 920 90 osc~ 0.005;
 #X obj 920 118 *~ 180;
 #X obj 920 146 +~ 600;
-#X obj 920 174 snapshot~;
+#X obj 920 174 else/sig2float~;
 #X obj 700 10 r disabled-pedal;
 #X msg 820 430 0.06;
 #X obj 820 458 s pedal-level;
@@ -228,10 +228,11 @@
 #X obj 1060 744 + 200;
 #X obj 1060 772 s filter-cutoff;
 #X obj 1210 520 else/lorenz~ 1;
-#X obj 1210 548 env~ 8192 4096;
-#X obj 1210 576 * 10;
-#X obj 1210 604 + 200;
+#X obj 1210 548 *~ 10;
+#X obj 1210 576 +~ 200;
+#X obj 1210 604 else/sig2float~;
 #X obj 1210 632 s filter-cutoff;
+#X msg 1320 520 \; pd dsp 1;
 #X connect 9 0 10 0;
 #X connect 13 0 14 0;
 #X connect 15 0 16 0;
@@ -425,3 +426,4 @@
 #X connect 229 0 230 0;
 #X connect 230 0 231 0;
 #X connect 231 0 232 0;
+#X connect 44 0 233 0;

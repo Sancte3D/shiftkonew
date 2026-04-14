@@ -20,7 +20,7 @@
 #X obj 110 391 hip~ 80;
 #X obj 110 421 throw~ drone-bus;
 #X obj 200 30 pack f 50000;
-#X obj 200 58 line~;
+#X obj 200 58 line;
 #X obj 350 30 loadbang;
 #X msg 350 58 0 0 \, 1 8000;
 #X obj 350 86 vline~;

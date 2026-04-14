@@ -61,7 +61,7 @@
 #X obj 520 30 osc~ 0.05;
 #X obj 520 58 *~ 400;
 #X obj 520 86 +~ 600;
-#X obj 520 114 snapshot~;
+#X obj 520 114 else/sig2float~;
 #X obj 520 142 metro 50;
 #X obj 520 170 loadbang;
 #X msg 520 198 1;

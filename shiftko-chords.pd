@@ -277,8 +277,7 @@
 #X connect 38 0 39 0;
 #X connect 39 0 43 0;
 #X connect 42 0 43 1;
-#X connect 43 0 217 0;
-#X connect 217 0 205 0;
+#X connect 43 0 220 0;
 #X connect 45 0 46 0;
 #X connect 46 0 47 0;
 #X connect 47 0 48 0;
