@@ -232,6 +232,14 @@
 #X obj 1210 576 * 10;
 #X obj 1210 604 + 200;
 #X obj 1210 632 s filter-cutoff;
+#X obj 20 80 cnv 15 175 235 empty empty MIXER 8 12 0 14 -233017 -66577 0;
+#X obj 205 80 cnv 15 190 235 empty empty PERFORMANCE 8 12 0 14 -228856 -66577 0;
+#X obj 405 80 cnv 15 190 680 empty empty BOOT_AND_MACRO 8 12 0 14 -245500 -66577 0;
+#X obj 20 390 cnv 15 830 130 empty empty SCALE_WEIGHTS 8 12 0 14 -241291 -66577 0;
+#X obj 220 150 tgl 18 0 - - perf-safe -2 -8 0 8 -262144 -1 -1 0;
+#X obj 220 185 s perf-safe;
+#X text 245 150 0=full\ 1=safe;
+#X text 220 205 CPU guard for wow/flutter + recursive feedback;
 #X connect 9 0 10 0;
 #X connect 13 0 14 0;
 #X connect 15 0 16 0;
@@ -425,3 +433,4 @@
 #X connect 229 0 230 0;
 #X connect 230 0 231 0;
 #X connect 231 0 232 0;
+#X connect 237 0 238 0;
