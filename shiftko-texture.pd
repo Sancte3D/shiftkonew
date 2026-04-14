@@ -5,7 +5,7 @@
 #X obj 160 58 +~;
 #X obj 160 86 *~ 0.5;
 #X obj 30 118 +~;
-#X obj 30 146 pitchshift~ 12;
+#X obj 30 146 else/pitch.shift~ 12;
 #X obj 30 174 hip~ 1000;
 #X obj 30 202 *~ 0.3;
 #X obj 30 230 *~;

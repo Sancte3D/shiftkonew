@@ -76,7 +76,7 @@
 #X msg 100 400 768;
 #X msg 135 400 854;
 #X msg 170 400 960;
-#X obj 900 466 floatatom 6 0 0 0 - - - 0;
+#X floatatom 900 466 6 0 0 0 - - - 0;
 #X obj 900 494 outlet;
 #X obj 270 185 t b b;
 #X obj 270 215 shiftko-markov;

@@ -2,9 +2,9 @@
 #X obj 30 30 osc~ 0.02;
 #X obj 30 58 *~ 0.18;
 #X obj 30 86 +~ 0.82;
-#X obj 160 30 white~;
-#X obj 250 30 pink~;
-#X obj 340 30 brown~;
+#X obj 160 30 else/white~;
+#X obj 250 30 else/pink~;
+#X obj 340 30 else/brown~;
 #X obj 430 30 noise~;
 #X obj 430 58 bp~ 900 1.5;
 #X obj 250 58 *~ 1.15;
