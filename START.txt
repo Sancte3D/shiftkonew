@@ -18,5 +18,11 @@ STARTEN:
   5. Rnd: neue zufällige Zeitintervalle für alle 4 Stimmen
   6. N1–N4: MIDI-Noten (Standard: 60 64 67 72 = C E G C)
 
+WICHTIG (EXTERNALS):
+  Dieses Patch nutzt die ELSE-Library (Objekte wie else/eq~,
+  else/plate.rev~, else/pitch.shift~, else/white~, else/pink~, else/brown~).
+  Installation: Deken -> "else" installieren, dann Pd neu starten.
+  Optionaler Check: ./setup-pd.sh
+
 FÜR MEHR DRONE: Drone-Fader weiter hochschieben.
 FÜR SOFORTIGE NOTEN: Rnd klicken (startet alle Metros neu).
