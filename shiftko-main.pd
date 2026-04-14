@@ -2,11 +2,11 @@
 #X obj 10 10 declare -lib else;
 #X obj 10 35 declare -path else;
 #X obj 10 60 declare -path .;
-#X obj 600 10 shiftko-drone;
-#X obj 600 35 shiftko-notes;
-#X obj 600 60 shiftko-texture;
-#X obj 600 85 shiftko-fx;
-#X obj 600 110 shiftko-noise;
+#X obj 600 10 ./shiftko-drone;
+#X obj 600 35 ./shiftko-notes;
+#X obj 600 60 ./shiftko-texture;
+#X obj 600 85 ./shiftko-fx;
+#X obj 600 110 ./shiftko-noise;
 #X obj 600 135 print;
 #X obj 20 90 hsl 160 16 30 100 0 60 - - BPM -2 -8 0 10 -262144 -1 -1;
 #X obj 20 112 s bpm;
@@ -227,7 +227,7 @@
 #X obj 1060 716 * 800;
 #X obj 1060 744 + 200;
 #X obj 1060 772 s filter-cutoff;
-#X obj 1210 520 lorenz~ 1;
+#X obj 1210 520 else/lorenz~ 1;
 #X obj 1210 548 env~ 8192 4096;
 #X obj 1210 576 * 10;
 #X obj 1210 604 + 200;
