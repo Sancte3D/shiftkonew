@@ -21,7 +21,7 @@
 #X obj 200 178 *~;
 #X obj 100 220 +~;
 #X obj 100 250 +~;
-#X obj 300 250 bp~ 2000 8;
+#X obj 300 250 else/eq~ 2000 -12 2;
 #X obj 300 278 *~ 0.25;
 #X obj 100 278 +~;
 #X obj 100 315 lop~;
@@ -98,7 +98,7 @@
 #X obj 750 58 delread~ haas 18;
 #X obj 100 540 else/plate.rev~;
 #X obj 200 5 catch~ note-bus-R;
-#X obj 200 178 *~;
+#X obj 200 198 *~;
 #X obj 200 206 *~;
 #X obj 250 206 +~;
 #X obj 200 236 *~ 0.25;
