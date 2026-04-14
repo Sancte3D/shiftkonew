@@ -27,7 +27,7 @@
 #X obj 220 150 tgl 22 1 - - Play -2 -8 0 9 -262144 -1 -1 1;
 #X obj 220 185 s transport;
 #X obj 260 150 tgl 20 0 - - HP -2 -8 0 8 -262144 -1 -1 1;
-#X obj 260 185 s headphone-mode;
+#X obj 260 185 s deprecated-headphone-mode;
 #X obj 220 215 bng 18 250 50 - - W -2 -8 0 8 -262144 -1 -1;
 #X obj 245 215 bng 18 250 50 - - P -2 -8 0 8 -262144 -1 -1;
 #X obj 270 215 bng 18 250 50 - - B -2 -8 0 8 -262144 -1 -1;
@@ -51,7 +51,7 @@
 #X msg 430 374 1;
 #X obj 430 402 s transport;
 #X msg 510 374 0;
-#X obj 510 402 s headphone-mode;
+#X obj 510 402 s deprecated-headphone-mode;
 #X msg 430 430 256;
 #X obj 430 458 s root-hz;
 #X msg 510 430 1;
@@ -85,7 +85,7 @@
 #X msg 200 252 0;
 #X msg 350 252 1;
 #X msg 350 280 2;
-#X obj 200 308 s scale-select;
+#X obj 200 308 s deprecated-scale-select;
 #X msg 200 336 256;
 #X msg 350 336 288;
 #X obj 200 364 s root-hz;
@@ -180,7 +180,7 @@
 #X obj 320 632 s notes-gate;
 #X obj 420 632 s noise-gate;
 #X obj 520 632 s texture-gate;
-#X obj 620 632 s headphone-mode;
+#X obj 620 632 s deprecated-headphone-mode;
 #X obj 20 660 s whole_time;
 #X obj 120 660 s randomize;
 #X obj 220 660 s chord-level;

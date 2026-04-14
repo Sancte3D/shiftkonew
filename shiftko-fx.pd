@@ -59,7 +59,7 @@
 #X obj 100 820 *~;
 #X obj 100 860 expr~ tanh($v1);
 #X obj 100 890 hip~ 5;
-#X obj 450 760 r headphone-mode;
+#X obj 450 760 r deprecated-headphone-mode;
 #X obj 450 788 pack f 500;
 #X obj 450 816 line~;
 #X obj 450 844 *~ -1;
