@@ -28,7 +28,7 @@
 #X obj 100 345 lop~;
 #X obj 230 295 r filter-cutoff;
 #X obj 230 323 pack f 2500;
-#X obj 230 351 line;
+#X obj 230 351 line~;
 #X obj 300 380 r noise-gate;
 #X obj 300 408 pack f 500;
 #X obj 300 436 line~;
@@ -103,7 +103,6 @@
 #X obj 250 206 +~;
 #X obj 200 236 *~ 0.25;
 #X obj 240 236 *~ 0.25;
-#X obj 300 5 catch~ note-bus;
 #X msg 520 960 decay 0.96;
 #X msg 520 988 damping 2000;
 #X obj 500 950 sig~ 1;
@@ -130,7 +129,6 @@
 #X connect 19 0 101 0;
 #X connect 100 0 101 1;
 #X connect 101 0 20 1;
-#X connect 104 0 101 0;
 #X connect 20 0 21 0;
 #X connect 15 0 21 1;
 #X connect 21 0 22 0;
@@ -138,7 +136,8 @@
 #X connect 23 0 24 0;
 #X connect 27 0 28 0;
 #X connect 28 0 29 0;
-#X connect 29 0 24 1;
+#X connect 29 0 25 1;
+#X connect 29 0 26 1;
 #X connect 3 0 33 0;
 #X connect 30 0 31 0;
 #X connect 31 0 32 0;
@@ -148,6 +147,7 @@
 #X connect 10 0 99 1;
 #X connect 99 0 100 0;
 #X connect 34 0 35 0;
+#X connect 34 0 97 0;
 #X connect 35 0 36 0;
 #X connect 97 0 35 1;
 #X connect 40 0 43 1;
@@ -182,12 +182,10 @@
 #X connect 68 0 69 0;
 #X connect 69 0 70 0;
 #X connect 71 0 65 2;
-#X connect 107 0 74 1;
-#X connect 107 0 75 1;
+#X connect 106 0 74 1;
+#X connect 106 0 75 1;
 #X connect 102 0 74 0;
 #X connect 103 0 75 0;
-#X connect 104 0 102 0;
-#X connect 104 0 103 0;
 #X connect 74 0 76 0;
 #X connect 75 0 77 0;
 #X connect 76 0 78 0;
@@ -208,7 +206,7 @@
 #X connect 96 0 78 1;
 #X connect 19 0 102 0;
 #X connect 100 0 103 0;
+#X connect 67 0 104 0;
 #X connect 67 0 105 0;
-#X connect 67 0 106 0;
+#X connect 104 0 97 0;
 #X connect 105 0 97 0;
-#X connect 106 0 97 0;

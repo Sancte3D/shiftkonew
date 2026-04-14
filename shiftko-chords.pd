@@ -61,7 +61,7 @@
 #X msg 380 278 0 5500;
 #X obj 310 362 vline~;
 #X obj 310 390 *~;
-#X obj 310 418 throw~ note-bus;
+#X obj 310 418 throw~ note-bus-L;
 #X obj 450 250 f 256;
 #X obj 450 278 pack f 2500;
 #X obj 450 306 line~;
@@ -70,7 +70,7 @@
 #X msg 520 278 0 8000;
 #X obj 450 362 vline~;
 #X obj 450 390 *~;
-#X obj 450 418 throw~ note-bus;
+#X obj 450 418 throw~ note-bus-L;
 #X obj 590 250 f 256;
 #X obj 590 278 pack f 2500;
 #X obj 590 306 line~;
@@ -117,7 +117,7 @@
 #X msg 1080 208 0 6000;
 #X obj 1010 292 vline~;
 #X obj 1010 320 *~;
-#X obj 1010 348 throw~ note-bus;
+#X obj 1010 348 throw~ note-bus-L;
 #X obj 1150 180    f 384;
 #X obj 1150 208 pack f 2500;
 #X obj 1150 236 line~;
@@ -126,7 +126,7 @@
 #X msg 1220 208 0 7000;
 #X obj 1150 292 vline~;
 #X obj 1150 320 *~;
-#X obj 1150 348 throw~ note-bus;
+#X obj 1150 348 throw~ note-bus-L;
 #X obj 1290 180    f 410;
 #X obj 1290 208 pack f 2500;
 #X obj 1290 236 line~;
@@ -178,7 +178,7 @@
 #X msg 1220 233 0 5000;
 #X obj 1150 317 vline~;
 #X obj 1150 345 *~;
-#X obj 1150 373 throw~ note-bus;
+#X obj 1150 373 throw~ note-bus-L;
 #X obj 1290 205    f 384;
 #X obj 1290 233 pack f 2500;
 #X obj 1290 261 line~;
@@ -187,7 +187,7 @@
 #X msg 1360 233 0 8500;
 #X obj 1290 317 vline~;
 #X obj 1290 345 *~;
-#X obj 1290 373 throw~ note-bus;
+#X obj 1290 373 throw~ note-bus-L;
 #X obj 1430 205    f 464;
 #X obj 1430 233 pack f 2500;
 #X obj 1430 261 line~;

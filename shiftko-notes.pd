@@ -99,7 +99,7 @@
 #X obj 800 100 r root-hz;
 #X obj 800 128 f 256;
 #X obj 800 156 * 0.5;
-#X obj 800 184 sig~ 0;
+#X obj 800 184 osc~ 0;
 #X obj 900 100 osc~ 0.007;
 #X obj 900 128 *~ 0.3;
 #X obj 900 156 +~ 0.5;
@@ -331,3 +331,7 @@
 #X connect 149 0 142 1;
 #X connect 142 0 93 0;
 #X connect 143 0 144 0;
+#X connect 14 0 15 0;
+#X connect 35 0 36 0;
+#X connect 56 0 57 0;
+#X connect 77 0 78 0;
