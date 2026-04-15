@@ -96,3 +96,4 @@ Only list items that are still open.
 - Optional scene crossfade layer (NodeProxy/Ndef fadeTime workflow)
 - Optional BPM metadata extension for non-drum sample groups (vocals/pads)
 - Hardware-facing controls/docs sync for new sub-bass block (SUB ON/OFF, SUB LEVEL, SUB DUCK)
+- Optional: integrate standalone `shiftko_ambient_ecosystem.scd` (8-layer engine) with main SHIFTKO UI / one session
