@@ -64,10 +64,10 @@
 #X msg 520 198 1;
 #X obj 470 430 loadbang;
 #X msg 470 458 1;
+#X obj 340 44 hip~ 5;
 #X connect 0 0 1 0;
 #X connect 1 0 2 0;
 #X connect 4 0 8 0;
-#X connect 5 0 9 0;
 #X connect 6 0 7 0;
 #X connect 7 0 10 0;
 #X connect 3 0 11 0;
@@ -157,3 +157,5 @@
 #X connect 59 0 54 1;
 #X connect 63 0 64 0;
 #X connect 64 0 44 1;
+#X connect 5 0 65 0;
+#X connect 65 0 9 0;

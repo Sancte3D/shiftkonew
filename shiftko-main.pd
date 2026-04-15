@@ -17,15 +17,15 @@
 #X obj 200 184 s mood-norm;
 #X obj 200 212 r mood-norm;
 #X obj 380 90 hsl 160 16 0 0.8 0 0.4 - - Space2 -2 -8 0 10 -262144 -1 -1;
-#X obj 380 112 s reverb-room;
+#X obj 380 112 s reverb-room-base;
 #X obj 20 150 vsl 18 120 0.001 0.8 1 0.6 - - Drn -2 -8 0 8 -262144 -1 -1;
 #X obj 20 280 s drone-level;
 #X obj 55 150 vsl 18 120 0.001 0.8 1 0.5 - - Nts -2 -8 0 8 -262144 -1 -1;
 #X obj 55 280 s notes-level;
-#X obj 90 150 vsl 18 120 0 0.15 0 0.03 - - Nse -2 -8 0 8 -262144 -1 -1;
+#X obj 90 150 vsl 18 120 0 0.3 0 0.06 - - Nse -2 -8 0 8 -262144 -1 -1;
 #X obj 90 280 s noise-level;
 #X obj 125 150 vsl 18 120 0.001 0.8 1 0.4 - - Spc -2 -8 0 8 -262144 -1 -1;
-#X obj 125 280 s reverb-room;
+#X obj 125 280 s reverb-room-base;
 #X obj 160 150 vsl 18 120 0.001 0.75 1 0.4 - - Vol -2 -8 0 8 -262144 -1 -1;
 #X obj 160 280 s master-vol;
 #X obj 220 150 tgl 22 1 empty empty Play -2 -8 0 9 -262144 -1 -1 1;
@@ -72,10 +72,10 @@
 #X obj 430 626 s drone-level;
 #X msg 510 598 0.5;
 #X obj 510 626 s notes-level;
-#X msg 430 654 0.03;
+#X msg 430 654 0.06;
 #X obj 430 682 s noise-level;
 #X msg 510 654 0.4;
-#X obj 510 682 s reverb-room;
+#X obj 510 682 s reverb-room-base;
 #X msg 430 710 0.4;
 #X obj 430 738 s master-vol;
 #X msg 510 710 1800;
@@ -164,7 +164,7 @@
 #X obj 20 576 s drone-level;
 #X obj 120 576 s notes-level;
 #X obj 220 576 s noise-level;
-#X obj 320 576 s reverb-room;
+#X obj 320 576 s reverb-room-base;
 #X obj 420 576 s master-vol;
 #X obj 520 576 s bpm;
 #X obj 20 604 s cosmic-w;
@@ -223,7 +223,7 @@
 #X obj 940 632 pack f 600000;
 #X obj 940 660 line;
 #X obj 940 688 t f f;
-#X obj 940 716 s reverb-room;
+#X obj 940 716 s reverb-room-mul-rnd;
 #X obj 1060 716 expr 0.65 + $f1 * 0.7;
 #X obj 1060 744 s filter-cutoff-mul-rnd;
 #X obj 1210 520 else/lorenz~ 1;
@@ -234,6 +234,7 @@
 #X obj 1290 632 s filter-cutoff-mul-chaos;
 #X msg 1320 520 \; pd dsp 1;
 #X obj 10 650 shiftko-filter-cutoff-mix;
+#X obj 200 650 shiftko-reverb-room-mix;
 #X connect 9 0 10 0;
 #X connect 17 0 18 0;
 #X connect 19 0 20 0;

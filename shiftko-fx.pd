@@ -91,9 +91,9 @@
 #X obj 350 924 *~;
 #X obj 230 730 +~;
 #X obj 600 30 osc~ 0.004;
-#X obj 600 58 *~ 0.12;
-#X obj 600 86 +~ 0.4;
-#X obj 600 114 s reverb-room;
+#X obj 600 58 *~ 0.15;
+#X obj 600 86 +~ 1;
+#X obj 600 114 s reverb-room-mul-lfo;
 #X obj 750 30 delwrite~ haas 40;
 #X obj 750 58 delread~ haas 18;
 #X obj 100 540 else/plate.rev~;
@@ -208,3 +208,7 @@
 #X connect 18 0 100 1;
 #X connect 15 0 82 0;
 #X connect 82 0 21 1;
+
+#X connect 91 0 92 0;
+#X connect 92 0 93 0;
+#X connect 93 0 94 0;
