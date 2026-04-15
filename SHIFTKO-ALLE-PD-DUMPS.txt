@@ -1,7 +1,7 @@
 SHIFT K.O. — VOLLSTAENDIGER PD-TEXTDUMP
-Erstellt: 2026-04-15T09:41:14
+Erstellt: 2026-04-15T10:34:06
 Root: /Users/mrmouse/Developer/shiftkonew
-Anzahl PD-Dateien: 18
+Anzahl PD-Dateien: 19
 
 Hinweis: Reiner Textdump fuer Analyse/Archivierung.
 
@@ -2206,7 +2206,7 @@ BYTES: 906
 ================================================================================
 DATEI: shiftko-fx.pd
 PFAD: shiftko-fx.pd
-BYTES: 5006
+BYTES: 5035
 ================================================================================
 #N canvas 0 0 800 1200 10;
 #X obj 30 30 catch~ drone-bus;
@@ -2301,9 +2301,9 @@ BYTES: 5006
 #X obj 350 924 *~;
 #X obj 230 730 +~;
 #X obj 600 30 osc~ 0.004;
-#X obj 600 58 *~ 0.12;
-#X obj 600 86 +~ 0.4;
-#X obj 600 114 s reverb-room;
+#X obj 600 58 *~ 0.15;
+#X obj 600 86 +~ 1;
+#X obj 600 114 s reverb-room-mul-lfo;
 #X obj 750 30 delwrite~ haas 40;
 #X obj 750 58 delread~ haas 18;
 #X obj 100 540 else/plate.rev~;
@@ -2332,15 +2332,11 @@ BYTES: 5006
 #X connect 11 0 19 0;
 #X connect 16 0 17 0;
 #X connect 17 0 18 0;
-#X connect 18 0 82 0;
-#X connect 82 0 19 1;
-#X connect 82 0 100 1;
 #X connect 7 0 20 0;
 #X connect 19 0 101 0;
 #X connect 100 0 101 1;
 #X connect 101 0 20 1;
 #X connect 20 0 21 0;
-#X connect 15 0 21 1;
 #X connect 21 0 22 0;
 #X connect 22 0 23 0;
 #X connect 23 0 24 0;
@@ -2410,8 +2406,6 @@ BYTES: 5006
 #X connect 88 0 89 1;
 #X connect 50 0 90 0;
 #X connect 89 0 90 1;
-#X connect 91 0 92 0;
-#X connect 92 0 93 0;
 #X connect 77 0 95 0;
 #X connect 96 0 78 1;
 #X connect 19 0 102 0;
@@ -2420,11 +2414,19 @@ BYTES: 5006
 #X connect 67 0 105 0;
 #X connect 104 0 97 0;
 #X connect 105 0 97 0;
+#X connect 18 0 19 1;
+#X connect 18 0 100 1;
+#X connect 15 0 82 0;
+#X connect 82 0 21 1;
+
+#X connect 91 0 92 0;
+#X connect 92 0 93 0;
+#X connect 93 0 94 0;
 
 ================================================================================
 DATEI: shiftko-main.pd
 PFAD: shiftko-main.pd
-BYTES: 12269
+BYTES: 14284
 ================================================================================
 #N canvas 100 100 680 620 12;
 #X obj 10 10 declare -lib else;
@@ -2445,15 +2447,15 @@ BYTES: 12269
 #X obj 200 184 s mood-norm;
 #X obj 200 212 r mood-norm;
 #X obj 380 90 hsl 160 16 0 0.8 0 0.4 - - Space2 -2 -8 0 10 -262144 -1 -1;
-#X obj 380 112 s reverb-room;
+#X obj 380 112 s reverb-room-base;
 #X obj 20 150 vsl 18 120 0.001 0.8 1 0.6 - - Drn -2 -8 0 8 -262144 -1 -1;
 #X obj 20 280 s drone-level;
 #X obj 55 150 vsl 18 120 0.001 0.8 1 0.5 - - Nts -2 -8 0 8 -262144 -1 -1;
 #X obj 55 280 s notes-level;
-#X obj 90 150 vsl 18 120 0 0.15 0 0.03 - - Nse -2 -8 0 8 -262144 -1 -1;
+#X obj 90 150 vsl 18 120 0 0.3 0 0.06 - - Nse -2 -8 0 8 -262144 -1 -1;
 #X obj 90 280 s noise-level;
 #X obj 125 150 vsl 18 120 0.001 0.8 1 0.4 - - Spc -2 -8 0 8 -262144 -1 -1;
-#X obj 125 280 s reverb-room;
+#X obj 125 280 s reverb-room-base;
 #X obj 160 150 vsl 18 120 0.001 0.75 1 0.4 - - Vol -2 -8 0 8 -262144 -1 -1;
 #X obj 160 280 s master-vol;
 #X obj 220 150 tgl 22 1 empty empty Play -2 -8 0 9 -262144 -1 -1 1;
@@ -2500,13 +2502,13 @@ BYTES: 12269
 #X obj 430 626 s drone-level;
 #X msg 510 598 0.5;
 #X obj 510 626 s notes-level;
-#X msg 430 654 0.03;
+#X msg 430 654 0.06;
 #X obj 430 682 s noise-level;
 #X msg 510 654 0.4;
-#X obj 510 682 s reverb-room;
+#X obj 510 682 s reverb-room-base;
 #X msg 430 710 0.4;
 #X obj 430 738 s master-vol;
-#X msg 510 710 600;
+#X msg 510 710 1800;
 #X obj 510 738 s filter-cutoff-base;
 #X obj 200 140 expr 200 + sqrt($f1) * 1000;
 #X obj 200 168 s filter-cutoff-base;
@@ -2592,7 +2594,7 @@ BYTES: 12269
 #X obj 20 576 s drone-level;
 #X obj 120 576 s notes-level;
 #X obj 220 576 s noise-level;
-#X obj 320 576 s reverb-room;
+#X obj 320 576 s reverb-room-base;
 #X obj 420 576 s master-vol;
 #X obj 520 576 s bpm;
 #X obj 20 604 s cosmic-w;
@@ -2651,7 +2653,7 @@ BYTES: 12269
 #X obj 940 632 pack f 600000;
 #X obj 940 660 line;
 #X obj 940 688 t f f;
-#X obj 940 716 s reverb-room;
+#X obj 940 716 s reverb-room-mul-rnd;
 #X obj 1060 716 expr 0.65 + $f1 * 0.7;
 #X obj 1060 744 s filter-cutoff-mul-rnd;
 #X obj 1210 520 else/lorenz~ 1;
@@ -2662,6 +2664,48 @@ BYTES: 12269
 #X obj 1290 632 s filter-cutoff-mul-chaos;
 #X msg 1320 520 \; pd dsp 1;
 #X obj 10 650 shiftko-filter-cutoff-mix;
+#X obj 200 650 shiftko-reverb-room-mix;
+#X text 20 730 Slider Debug Monitors (live receive values);
+#X obj 20 760 r bpm;
+#X floatatom 115 760 8 0 0 0 BPM - - 0;
+#X obj 205 760 r mood-raw;
+#X floatatom 300 760 8 0 0 0 MoodRaw - - 0;
+#X obj 390 760 r reverb-room-base;
+#X floatatom 485 760 8 0 0 0 RevBase - - 0;
+#X obj 575 760 r drone-level;
+#X floatatom 670 760 8 0 0 0 DrnLvl - - 0;
+#X obj 20 802 r notes-level;
+#X floatatom 115 802 8 0 0 0 NtsLvl - - 0;
+#X obj 205 802 r noise-level;
+#X floatatom 300 802 8 0 0 0 NseLvl - - 0;
+#X obj 390 802 r master-vol;
+#X floatatom 485 802 8 0 0 0 Vol - - 0;
+#X obj 575 802 r texture-level;
+#X floatatom 670 802 8 0 0 0 TexLvl - - 0;
+#X obj 20 844 r chord-level;
+#X floatatom 115 844 8 0 0 0 ChdLvl - - 0;
+#X obj 205 844 r pedal-level;
+#X floatatom 300 844 8 0 0 0 PedLvl - - 0;
+#X obj 390 844 r cosmic-w;
+#X floatatom 485 844 8 0 0 0 CosmicW - - 0;
+#X obj 575 844 r wonder-w;
+#X floatatom 670 844 8 0 0 0 WonderW - - 0;
+#X obj 20 886 r hopeful-w;
+#X floatatom 115 886 8 0 0 0 HopeW - - 0;
+#X obj 205 886 r koto-w;
+#X floatatom 300 886 8 0 0 0 KotoW - - 0;
+#X obj 390 886 r raga-w;
+#X floatatom 485 886 8 0 0 0 RagaW - - 0;
+#X obj 575 886 r pelog-w;
+#X floatatom 670 886 8 0 0 0 PelogW - - 0;
+#X obj 20 928 r safir16-w;
+#X floatatom 115 928 8 0 0 0 SafirW - - 0;
+#X obj 205 928 r filter-cutoff-base;
+#X floatatom 300 928 8 0 0 0 FltBase - - 0;
+#X obj 390 928 r reverb-room;
+#X floatatom 485 928 8 0 0 0 RevOut - - 0;
+#X obj 575 928 r filter-cutoff;
+#X floatatom 670 928 8 0 0 0 FltOut - - 0;
 #X connect 9 0 10 0;
 #X connect 17 0 18 0;
 #X connect 19 0 20 0;
@@ -2842,7 +2886,6 @@ BYTES: 12269
 #X connect 222 0 223 0;
 #X connect 223 0 224 0;
 #X connect 223 1 225 0;
-#X connect 225 0 226 0;
 #X connect 227 0 228 0;
 #X connect 228 0 229 0;
 #X connect 229 0 230 0;
@@ -2856,6 +2899,26 @@ BYTES: 12269
 #X connect 16 0 81 0;
 #X connect 16 0 83 0;
 #X connect 161 24 12 0;
+#X connect 237 0 238 0;
+#X connect 239 0 240 0;
+#X connect 241 0 242 0;
+#X connect 243 0 244 0;
+#X connect 245 0 246 0;
+#X connect 247 0 248 0;
+#X connect 249 0 250 0;
+#X connect 251 0 252 0;
+#X connect 253 0 254 0;
+#X connect 255 0 256 0;
+#X connect 257 0 258 0;
+#X connect 259 0 260 0;
+#X connect 261 0 262 0;
+#X connect 263 0 264 0;
+#X connect 265 0 266 0;
+#X connect 267 0 268 0;
+#X connect 269 0 270 0;
+#X connect 271 0 272 0;
+#X connect 273 0 274 0;
+#X connect 275 0 276 0;
 
 ================================================================================
 DATEI: shiftko-markov.pd
@@ -2908,7 +2971,7 @@ BYTES: 955
 ================================================================================
 DATEI: shiftko-noise.pd
 PFAD: shiftko-noise.pd
-BYTES: 3527
+BYTES: 3571
 ================================================================================
 #N canvas 0 0 560 520 10;
 #X obj 30 30 osc~ 0.02;
@@ -2976,10 +3039,10 @@ BYTES: 3527
 #X msg 520 198 1;
 #X obj 470 430 loadbang;
 #X msg 470 458 1;
+#X obj 340 44 hip~ 5;
 #X connect 0 0 1 0;
 #X connect 1 0 2 0;
 #X connect 4 0 8 0;
-#X connect 5 0 9 0;
 #X connect 6 0 7 0;
 #X connect 7 0 10 0;
 #X connect 3 0 11 0;
@@ -3069,11 +3132,13 @@ BYTES: 3527
 #X connect 59 0 54 1;
 #X connect 63 0 64 0;
 #X connect 64 0 44 1;
+#X connect 5 0 65 0;
+#X connect 65 0 9 0;
 
 ================================================================================
 DATEI: shiftko-notes.pd
 PFAD: shiftko-notes.pd
-BYTES: 7880
+BYTES: 7900
 ================================================================================
 #N canvas -7 0 1281 1388 10;
 #X obj 30 30 r randomize;
@@ -3090,18 +3155,18 @@ BYTES: 7880
 #X obj 30 183 Chords_Scales;
 #X obj 30 215 t f f;
 #X obj 130 215 * 1.001;
-#X obj 30 247 pack f 3000;
+#X obj 30 247 pack f 1200;
 #X obj 30 275 vline~;
 #X obj 30 280 osc~;
-#X obj 130 247 pack f 3000;
+#X obj 130 247 pack f 1200;
 #X obj 130 275 vline~;
 #X obj 130 280 osc~;
 #X obj 30 313 +~;
 #X obj 30 343 r whole_time;
-#X obj 30 371 * 1.2;
+#X obj 30 371 * 0.35;
 #X obj 30 399 delay 2000;
-#X msg 30 427 0 0 \, 0.7 2000;
-#X msg 30 455 0 4000;
+#X msg 30 427 0 10 \, 0.7 2000 10;
+#X msg 30 455 0 1200;
 #X obj 30 483 vline~;
 #X obj 30 513 *~;
 #X obj 30 543 *~ 0.2;
@@ -3111,18 +3176,18 @@ BYTES: 7880
 #X obj 250 183 Chords_Scales;
 #X obj 250 215 t f f;
 #X obj 350 215 * 0.999;
-#X obj 250 247 pack f 3000;
+#X obj 250 247 pack f 1200;
 #X obj 250 275 vline~;
 #X obj 250 280 osc~;
-#X obj 350 247 pack f 3000;
+#X obj 350 247 pack f 1200;
 #X obj 350 275 vline~;
 #X obj 350 280 osc~;
 #X obj 250 313 +~;
 #X obj 250 343 r whole_time;
-#X obj 250 371 * 1.2;
+#X obj 250 371 * 0.35;
 #X obj 250 399 delay 2000;
-#X msg 250 427 0 0 \, 0.7 2000;
-#X msg 250 455 0 4000;
+#X msg 250 427 0 10 \, 0.7 2000 10;
+#X msg 250 455 0 1200;
 #X obj 250 483 vline~;
 #X obj 250 513 *~;
 #X obj 250 543 *~ 0.2;
@@ -3132,18 +3197,18 @@ BYTES: 7880
 #X obj 470 183 Chords_Scales;
 #X obj 470 215 t f f;
 #X obj 570 215 * 1.002;
-#X obj 470 247 pack f 3000;
+#X obj 470 247 pack f 1200;
 #X obj 470 275 vline~;
 #X obj 470 280 osc~;
-#X obj 570 247 pack f 3000;
+#X obj 570 247 pack f 1200;
 #X obj 570 275 vline~;
 #X obj 570 280 osc~;
 #X obj 470 313 +~;
 #X obj 470 343 r whole_time;
-#X obj 470 371 * 1.2;
+#X obj 470 371 * 0.35;
 #X obj 470 399 delay 2000;
-#X msg 470 427 0 0 \, 0.7 2000;
-#X msg 470 455 0 4000;
+#X msg 470 427 0 10 \, 0.7 2000 10;
+#X msg 470 455 0 1200;
 #X obj 470 483 vline~;
 #X obj 470 513 *~;
 #X obj 470 543 *~ 0.2;
@@ -3153,18 +3218,18 @@ BYTES: 7880
 #X obj 690 183 Chords_Scales;
 #X obj 690 215 t f f;
 #X obj 790 215 * 0.998;
-#X obj 690 247 pack f 3000;
+#X obj 690 247 pack f 1200;
 #X obj 690 275 vline~;
 #X obj 690 280 osc~;
-#X obj 790 247 pack f 3000;
+#X obj 790 247 pack f 1200;
 #X obj 790 275 vline~;
 #X obj 790 280 osc~;
 #X obj 690 313 +~;
 #X obj 690 343 r whole_time;
-#X obj 690 371 * 1.2;
+#X obj 690 371 * 0.35;
 #X obj 690 399 delay 2000;
-#X msg 690 427 0 0 \, 0.7 2000;
-#X msg 690 455 0 4000;
+#X msg 690 427 0 10 \, 0.7 2000 10;
+#X msg 690 455 0 1200;
 #X obj 690 483 vline~;
 #X obj 690 513 *~;
 #X obj 690 543 *~ 0.2;
@@ -3438,6 +3503,31 @@ BYTES: 507
 #X connect 5 0 6 1;
 #X connect 6 0 7 1;
 #X connect 7 0 8 0;
+
+================================================================================
+DATEI: shiftko-reverb-room-mix.pd
+PFAD: shiftko-reverb-room-mix.pd
+BYTES: 577
+================================================================================
+#N canvas 0 0 520 220 10;
+#X obj 20 40 r reverb-room-base;
+#X obj 20 70 float;
+#X obj 20 100 r reverb-room-mul-lfo;
+#X obj 20 130 float 1;
+#X obj 240 40 r reverb-room-mul-rnd;
+#X obj 240 70 float 1;
+#X obj 240 110 expr $f1 * (($f2 <= 0) * 1 + ($f2 > 0) * $f2) * (($f3 <= 0) * 1 + ($f3 > 0) * $f3);
+#X obj 240 150 s reverb-room;
+#X obj 400 40 loadbang;
+#X msg 400 70 \; reverb-room-mul-lfo 1 \; reverb-room-mul-rnd 1;
+#X connect 0 0 1 0;
+#X connect 1 0 6 0;
+#X connect 2 0 3 0;
+#X connect 3 0 6 1;
+#X connect 4 0 5 0;
+#X connect 5 0 6 2;
+#X connect 6 0 7 0;
+#X connect 8 0 9 0;
 
 ================================================================================
 DATEI: shiftko-texture.pd

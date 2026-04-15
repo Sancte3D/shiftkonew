@@ -106,6 +106,13 @@
 #X msg 520 960 decay 0.96;
 #X msg 520 988 damping 2000;
 #X obj 500 950 sig~ 1;
+#X obj 20 1040 osc~ 0.007;
+#X obj 20 1068 *~ 0.2;
+#X obj 20 1096 +~ 0.8;
+#X obj 120 1096 *~ -1;
+#X obj 120 1124 +~ 1;
+#X obj 20 1124 *~;
+#X obj 120 1152 *~;
 #X connect 0 0 7 0;
 #X connect 4 0 5 0;
 #X connect 5 0 6 0;
@@ -212,3 +219,13 @@
 #X connect 91 0 92 0;
 #X connect 92 0 93 0;
 #X connect 93 0 94 0;
+#X connect 107 0 108 0;
+#X connect 108 0 109 0;
+#X connect 109 0 110 0;
+#X connect 110 0 111 0;
+#X connect 7 0 112 0;
+#X connect 7 0 113 0;
+#X connect 109 0 112 1;
+#X connect 111 0 113 1;
+#X connect 112 0 74 0;
+#X connect 113 0 75 0;

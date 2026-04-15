@@ -130,9 +130,9 @@
 #X obj 750 570 s texture-gate;
 #X msg 850 542 0.1;
 #X obj 850 570 s texture-level;
-#X obj 920 90 osc~ 0.005;
-#X obj 920 118 *~ 180;
-#X obj 920 146 +~ 600;
+#X obj 920 90 osc~ 0.001;
+#X obj 920 118 *~ 630;
+#X obj 920 146 +~ 870;
 #X obj 920 174 else/sig2float~;
 #X msg 820 430 0.06;
 #X obj 820 458 s pedal-level;
@@ -157,7 +157,7 @@
 #X obj 740 508 s safir16-w;
 #X obj 1020 90 metro 2000;
 #X obj 1020 118 loadbang;
-#X obj 920 202 expr max(0.65\, min(1.35\, $f1/600));
+#X obj 920 202 expr max(0.4\, min(2.5\, $f1/600));
 #X obj 1000 202 s filter-cutoff-mul-lfo;
 #X obj 20 520 netreceive -u 7400;
 #X obj 20 548 route drone-level notes-level noise-level reverb-room master-vol bpm cosmic-w wonder-w hopeful-w koto-w raga-w pelog-w safir16-w root-hz transport drone-gate notes-gate noise-gate texture-gate deprecated-headphone-mode whole_time randomize chord-level pedal-level mood-raw;
