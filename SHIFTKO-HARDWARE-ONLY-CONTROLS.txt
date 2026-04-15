@@ -28,31 +28,18 @@ Music behavior:
 DnB block (simplified):
 - Toggle: DNB ON/OFF
 - Button: NEXT BREAK
-- Encoder/Fader: DnB Vol
-- Encoder: DnB Chaos
-- Encoder: DnB Roll
-- Encoder: DnB Stutter
-- Encoder: DnB Rate Offset
-- Encoder: DnB Target BPM
-- Encoder: DnB Source BPM
-- Encoder: DnB Break HPF
-- Encoder: DnB Kick Amp
-- Encoder: DnB Sidechain Depth
-- Encoder: DnB Reverb Send
+- Encoder/Fader: DnB Amount
+- Encoder: DnB Energy (macro: chaos + roll + stutter + kick + sidechain)
+- Encoder: DnB Tone (macro: break HPF + reverb color)
+- Encoder: DnB Tempo (target BPM)
 
 Vocal granular block (simplified):
 - Toggle: VOC ON/OFF
 - Button: NEXT VOCAL
-- Encoder: Vocal Amp
-- Encoder: Vocal Position
-- Encoder: Vocal Jitter
-- Encoder: Vocal Grain Duration
-- Encoder: Vocal Density
+- Encoder: Vocal Amount
+- Encoder: Vocal Texture (macro: position + jitter + grain duration + density)
+- Encoder: Vocal Tone (macro: HPF + LPF + reverb)
 - Encoder: Vocal Rate
-- Encoder: Vocal HPF
-- Encoder: Vocal LPF
-- Encoder: Vocal Reverb
-- Encoder: Vocal Pan Width
 
 Session / transport essentials:
 - Button: SAVE SESSION
