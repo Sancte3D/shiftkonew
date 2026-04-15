@@ -13,7 +13,7 @@
 #X obj 200 90 hsl 160 16 0 1 0 0.3 - - Mood -2 -8 0 10 -262144 -1 -1;
 #X obj 200 112 s mood-raw;
 #X obj 200 128 r mood-raw;
-#X obj 200 156 expr min(1, max(0, $f1));
+#X obj 200 156 expr min(1\, max(0\, $f1));
 #X obj 200 184 s mood-norm;
 #X obj 200 212 r mood-norm;
 #X obj 380 90 hsl 160 16 0 0.8 0 0.4 - - Space2 -2 -8 0 10 -262144 -1 -1;
@@ -157,7 +157,7 @@
 #X obj 740 508 s safir16-w;
 #X obj 1020 90 metro 2000;
 #X obj 1020 118 loadbang;
-#X obj 920 202 expr max(0.65, min(1.35, $f1/600));
+#X obj 920 202 expr max(0.65\, min(1.35\, $f1/600));
 #X obj 1000 202 s filter-cutoff-mul-lfo;
 #X obj 20 520 netreceive -u 7400;
 #X obj 20 548 route drone-level notes-level noise-level reverb-room master-vol bpm cosmic-w wonder-w hopeful-w koto-w raga-w pelog-w safir16-w root-hz transport drone-gate notes-gate noise-gate texture-gate deprecated-headphone-mode whole_time randomize chord-level pedal-level mood-raw;
@@ -230,7 +230,7 @@
 #X obj 1210 548 *~ 10;
 #X obj 1210 576 +~ 200;
 #X obj 1210 604 else/sig2float~;
-#X obj 1210 632 expr max(0.72, min(1.28, $f1/235));
+#X obj 1210 632 expr max(0.72\, min(1.28\, $f1/235));
 #X obj 1290 632 s filter-cutoff-mul-chaos;
 #X msg 1320 520 \; pd dsp 1;
 #X obj 10 650 shiftko-filter-cutoff-mix;
