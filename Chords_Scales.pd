@@ -24,12 +24,12 @@
 #X obj 1170 120 +;
 #X obj 1260 120 +;
 #X obj 1350 120 +;
-#X obj 900 148 expr $f1+($f2*0);
-#X obj 990 148 expr $f1+($f2*0);
-#X obj 1080 148 expr $f1+($f2*0);
-#X obj 1170 148 expr $f1+($f2*0);
-#X obj 1260 148 expr $f1+($f2*0);
-#X obj 1350 148 expr $f1+($f2*0);
+#X obj 900 148 expr $f1;
+#X obj 990 148 expr $f1;
+#X obj 1080 148 expr $f1;
+#X obj 1170 148 expr $f1;
+#X obj 1260 148 expr $f1;
+#X obj 1350 148 expr $f1;
 #X obj 730 179 moses 14;
 #X obj 830 179 moses 14;
 #X obj 930 179 moses 14;
