@@ -21,6 +21,13 @@
 - **Done (neu):** Arrangement-Makro-Slots A/B/C mit Save/Load und persistenter Datei.
 - **Done (neu):** Strict Pickup Mode fuer nicht-motorisierte Controller (Lock nach Szenen/Makros + Override).
 - **Done (neu):** Arrangement-Phase-Editor im UI (Phase+Param+Wert direkt editierbar).
+- **Done (neu):** Performance Safe Lock (harte Live-Caps fuer kritische Parameter, UI-Toggle).
+- **Done (neu):** BPM-Metadaten-Workflow fuer Break-Library (sample-path -> sourceBpm Auto-Set).
+- **Done (neu):** Arrangement-Batch-Apply pro Phase (`APPLY PHASE NOW`).
+- **Done (neu):** Vocal-Granularmodul (`vocalGranCloud`) mit Loader, Random-Select, Start/Stop und Live-UI-Reglern.
+- **Done (neu):** UI-Vereinfachung fuer Hardware-Fokus (Basic-Mode zeigt nur Kernbedienung + DnB/Vocal + Session).
+- **Done (neu):** DnB und Vocal als ON/OFF-Flow mit Auto-Random-Load statt separatem Load/Start/Stop-Zwang.
+- **Done (neu):** `RESET SESSION` als einfacher Arbeits-Reset neben Save/Load.
 
 ## Bereits implementierte Entscheidungen
 
@@ -35,11 +42,8 @@
 
 - Vollstaendiger Source/FX-Bus-Refactor mit deterministischer Order (`Group.head/tail`) fuer alle Klangquellen.
 - Monolith/Modular vollstaendig angleichen (gleiche Defaults und Makro-Logik in beiden Pfaden).
-- Optionaler separater "Performance Safe Lock"-Button (temporare Limits fuer kritische Parameter bei Live-Sets).
 - NodeProxy/Ndef-Crossfade-Layer fuer Szenenwechsel (`fadeTime`) als optionaler Live-Modus.
-- BPM-Metadaten-Workflow: Sample-Quelle (`sourceBpm`) verpflichtend pro Break/Vocal dokumentieren und beim Laden setzen.
-- Optionales Vocal-Granularmodul (`Warp1`/`GrainBuf`) fuer zeitgedehnte Atmos ohne Pitch-Drift.
-- Naechster Schritt: Arrangement-Phase-Editor um Multi-Parameter-Apply pro Szene (Batch) erweitern.
+- Naechster Schritt: BPM-Metadaten auf Vocals/Pads ausweiten (optional, falls rhythmisch genutzt).
 
 ## Open Tasks (Hardware-/PoC-gebunden)
 

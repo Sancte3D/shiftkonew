@@ -112,7 +112,7 @@ s.waitForBoot {
 		scalePelog   = [1, 1.07, 1.18, 1.32, 1.52, 1.74, 2];
 		scaleSafir16 = [1, 16/15, 9/8, 6/5, 5/4, 4/3, 45/32, 3/2, 8/5, 5/3, 9/5, 15/8, 2];
 
-		chaosRateJitter = LinLin.kr(LorenzL.kr(0.08), -1, 1, 0.93, 1.07);
+		chaosRateJitter = LinLin.kr(A2K.kr(LorenzL.ar(0.08)), -1, 1, 0.93, 1.07);
 		trigRate = (((bpmS / 60) / 2) * chaosRateJitter).clip(0.05, 4);
 		trig = Impulse.kr(trigRate) * tr * nGate * mGate;
 		noteTrig = CoinGate.kr(densityCtrl, trig);
@@ -156,7 +156,7 @@ s.waitForBoot {
 		// Notes: duale Detune-Voices + lange Ambient-Release-Zeit
 		detuneA = 1.001;
 		detuneB = 0.999;
-		chaosPitchDrift = LinExp.kr(LorenzL.kr(0.11), -1, 1, 1 - (effectiveChaos * 0.03), 1 + (effectiveChaos * 0.03));
+		chaosPitchDrift = LinExp.kr(A2K.kr(LorenzL.ar(0.11)), -1, 1, 1 - (effectiveChaos * 0.03), 1 + (effectiveChaos * 0.03));
 		noteHz = Lag.kr(scaleHz * chaosPitchDrift, 1.2);
 		noteEnv = EnvGen.kr(Env.perc(0.02, 16.0, 0.7, curve: -4), gate: noteTrig);
 		noteSig = (
@@ -246,7 +246,82 @@ s.waitForBoot {
 	~paramState = IdentityDictionary.new;
 	~statePath = Platform.userAppSupportDir +/+ "shiftko_ambient_state.archive";
 	~arrangementMacroPath = Platform.userAppSupportDir +/+ "shiftko_arrangement_macros.archive";
-	~defaultDnbBreakPath = "/Users/mrmouse/Downloads/170BPM_Mono_Tramen_44100Hz.wav";
+	~samplePaths = (
+		breaks: [
+			"/Users/mrmouse/Developer/shiftkonew/samples/breaks/170bpm_AmenBreak_Tremen.wav",
+			"/Users/mrmouse/Developer/shiftkonew/samples/breaks/170BPM_AmenBreak_2,823sec.wav",
+			"/Users/mrmouse/Developer/shiftkonew/samples/breaks/170bpm_hotpants_2,823sek.wav",
+			"/Users/mrmouse/Developer/shiftkonew/samples/breaks/170BPM_Attack_Break_2,832sec.wav"
+		],
+		bass: [
+			"/Users/mrmouse/Developer/shiftkonew/samples/bass/19 Bass - 6A.wav",
+			"/Users/mrmouse/Developer/shiftkonew/samples/bass/Aura Bass - 9B.wav",
+			"/Users/mrmouse/Developer/shiftkonew/samples/bass/Illicit Bass - 9B.wav",
+			"/Users/mrmouse/Developer/shiftkonew/samples/bass/Let Roll Bass - 2B.wav",
+			"/Users/mrmouse/Developer/shiftkonew/samples/bass/Moomin 808 - 5A.wav",
+			"/Users/mrmouse/Developer/shiftkonew/samples/bass/Type Bass - 4B.wav",
+			"/Users/mrmouse/Developer/shiftkonew/samples/bass/Worries Sub - 5A.wav"
+		],
+		fxCore: [
+			"/Users/mrmouse/Developer/shiftkonew/samples/fx/core/Aura Rise - 3A.wav",
+			"/Users/mrmouse/Developer/shiftkonew/samples/fx/core/Centuries Vocode - 5B.wav",
+			"/Users/mrmouse/Developer/shiftkonew/samples/fx/core/Sonic Dolphins - 5A.wav",
+			"/Users/mrmouse/Developer/shiftkonew/samples/fx/core/Spring Metal - 9A.wav"
+		],
+		atmosPads: [
+			"/Users/mrmouse/Developer/shiftkonew/samples/atmos/pads/19 Pad - 6A.wav",
+			"/Users/mrmouse/Developer/shiftkonew/samples/atmos/pads/Apollo VCF Pad - 10B.wav",
+			"/Users/mrmouse/Developer/shiftkonew/samples/atmos/pads/Careless Pad - 6A.wav",
+			"/Users/mrmouse/Developer/shiftkonew/samples/atmos/pads/Connected Modu Pad - 6A.wav",
+			"/Users/mrmouse/Developer/shiftkonew/samples/atmos/pads/Face Pads - 7A.wav",
+			"/Users/mrmouse/Developer/shiftkonew/samples/atmos/pads/Freedom Pad - 5A.wav",
+			"/Users/mrmouse/Developer/shiftkonew/samples/atmos/pads/God Chord Pad - 6A.wav",
+			"/Users/mrmouse/Developer/shiftkonew/samples/atmos/pads/Gravitational Pad - 9A.wav",
+			"/Users/mrmouse/Developer/shiftkonew/samples/atmos/pads/Inna Pad - 7B.wav",
+			"/Users/mrmouse/Developer/shiftkonew/samples/atmos/pads/Inner Pad - 11A.wav",
+			"/Users/mrmouse/Developer/shiftkonew/samples/atmos/pads/Reflections Pad - 3B.wav",
+			"/Users/mrmouse/Developer/shiftkonew/samples/atmos/pads/Revelation Pad - 1B.wav",
+			"/Users/mrmouse/Developer/shiftkonew/samples/atmos/pads/Seatown Pad - 5A.wav",
+			"/Users/mrmouse/Developer/shiftkonew/samples/atmos/pads/Ten Pad - 9B.wav",
+			"/Users/mrmouse/Developer/shiftkonew/samples/atmos/pads/Touch Vocal Pad - 8A.wav",
+			"/Users/mrmouse/Developer/shiftkonew/samples/atmos/pads/Western Pad.wav"
+		],
+		atmosVocals: [
+			"/Users/mrmouse/Developer/shiftkonew/samples/atmos/vocals/All The People Vox - 8A.wav",
+			"/Users/mrmouse/Developer/shiftkonew/samples/atmos/vocals/Bouncer Vox.wav",
+			"/Users/mrmouse/Developer/shiftkonew/samples/atmos/vocals/Peace Sign Vox - 7B.wav",
+			"/Users/mrmouse/Developer/shiftkonew/samples/atmos/vocals/Soul Vox - 6A.wav",
+			"/Users/mrmouse/Developer/shiftkonew/samples/atmos/vocals/Terrorist Vox Hit - 9A.wav"
+		]
+	);
+	~sampleMeta = (
+		"/Users/mrmouse/Developer/shiftkonew/samples/breaks/170bpm_AmenBreak_Tremen.wav": (category: \break, sourceBpm: 170),
+		"/Users/mrmouse/Developer/shiftkonew/samples/breaks/170BPM_AmenBreak_2,823sec.wav": (category: \break, sourceBpm: 170),
+		"/Users/mrmouse/Developer/shiftkonew/samples/breaks/170bpm_hotpants_2,823sek.wav": (category: \break, sourceBpm: 170),
+		"/Users/mrmouse/Developer/shiftkonew/samples/breaks/170BPM_Attack_Break_2,832sec.wav": (category: \break, sourceBpm: 170)
+	);
+	~getSampleMeta = { |path| ~sampleMeta[path] };
+	~getSampleSourceBpm = { |path, fallback=170|
+		var m = ~getSampleMeta.(path);
+		(m.notNil and: { m[\sourceBpm].notNil }).if({ m[\sourceBpm] }, { fallback });
+	};
+	~breakPaths = ~samplePaths[\breaks];
+	~bassPaths = ~samplePaths[\bass];
+	~fxCorePaths = ~samplePaths[\fxCore];
+	~atmosPadPaths = ~samplePaths[\atmosPads];
+	~vocalPaths = ~samplePaths[\atmosVocals];
+	~defaultDnbBreakPath = "/Users/mrmouse/Developer/shiftkonew/samples/breaks/170bpm_AmenBreak_Tremen.wav";
+	~performanceSafeLock = false;
+	~performanceSafeCaps = (
+		masterVol: 0.45,
+		textureLevel: 0.08,
+		noiseLevel: 0.09,
+		dnbVol: 0.55,
+		dnbKickAmp: 0.7,
+		dnbSidechainDepth: 0.35,
+		reverbRoomBase: 0.65,
+		dnbRev: 0.5
+	);
 	~defaultState = [
 		\safeMode, 1, \mixMode, 0, \chaosDepth, 0.12, \textureDuck, 0.6, \weightEvolve, 0.18, \noteDensity, 0.9, \calmness, 0.62,
 		\auxInEnable, 0, \auxInLevel, 0.0, \auxInBlend, 0.0,
@@ -257,13 +332,17 @@ s.waitForBoot {
 		\cosmicW, 70, \wonderW, 20, \hopefulW, 10, \kotoW, 0, \ragaW, 0, \pelogW, 0, \safir16W, 0
 	];
 	~setParam = { |param, value, syncUI=true|
-		if(~setDnbParam.notNil and: { [\dnbVol, \dnbChaos, \dnbRoll, \dnbStutter, \dnbBreakHPF, \dnbKickAmp, \dnbSidechainDepth, \dnbRateOffset, \dnbRev, \dnbTargetBpm, \dnbSourceBpm].includes(param) }) {
-			~setDnbParam.(param, value);
+		var v = value;
+		if(~performanceSafeLock and: { ~performanceSafeCaps[param].notNil }) {
+			v = v.min(~performanceSafeCaps[param]);
 		};
-		~paramState[param] = value;
-		if(~shiftko.notNil) { ~shiftko.set(param, value); };
-		if(syncUI and: { ~uiControls[param].notNil }) { ~uiControls[param][\set].(value); };
-		if(~sendMidiFeedback.notNil) { ~sendMidiFeedback.(param, value); };
+		if(~setDnbParam.notNil and: { [\dnbVol, \dnbChaos, \dnbRoll, \dnbStutter, \dnbBreakHPF, \dnbKickAmp, \dnbSidechainDepth, \dnbRateOffset, \dnbRev, \dnbTargetBpm, \dnbSourceBpm].includes(param) }) {
+			~setDnbParam.(param, v);
+		};
+		~paramState[param] = v;
+		if(~shiftko.notNil) { ~shiftko.set(param, v); };
+		if(syncUI and: { ~uiControls[param].notNil }) { ~uiControls[param][\set].(v); };
+		if(~sendMidiFeedback.notNil) { ~sendMidiFeedback.(param, v); };
 	};
 	~applyParams = { |arr, syncUI=true|
 		arr.clump(2).do { |pair| ~setParam.(pair[0], pair[1], syncUI); };
@@ -275,7 +354,7 @@ s.waitForBoot {
 		"SHIFTKO state saved.".postln;
 	};
 	~loadState = {
-		if(PathName(~statePath).exists) {
+		if(PathName(~statePath).isFile) {
 			var d = Object.readArchive(~statePath);
 			if(d.notNil) {
 				d.keysValuesDo { |k, v| ~setParam.(k, v, true); };
@@ -354,7 +433,7 @@ s.waitForBoot {
 	);
 	~midiMap = (1: \textureLevel, 2: \notesLevel, 3: \droneLevel, 4: \masterVol, 5: \calmness, 6: \chaosDepth, 7: \weightEvolve, 8: \noteDensity, 9: \reverbRoomBase, 10: \filterCutoffBase, 11: \textureDuck, 12: \moodRaw, 13: \auxInLevel, 14: \auxInBlend, 15: \dnbVol, 16: \dnbChaos, 17: \dnbRoll, 18: \dnbRateOffset, 19: \dnbRev, 20: \dnbStutter, 21: \dnbBreakHPF, 22: \dnbKickAmp, 23: \dnbSidechainDepth);
 	// Relative Encoder-Map (CC -> [Param, Step]). Decoder: Two's Complement / Sign-Magnitude tolerant.
-	~encoderMap = (21: [\filterCutoffBase, 0.03], 22: [\reverbRoomBase, 0.025], 23: [\chaosDepth, 0.03], 24: [\noteDensity, 0.025]);
+	~encoderMap = (31: [\filterCutoffBase, 0.03], 32: [\reverbRoomBase, 0.025], 33: [\chaosDepth, 0.03], 34: [\noteDensity, 0.025]);
 	// Feedback-MIDI (SC -> Teensy), CC layout frei anpassbar.
 	~feedbackMap = (\textureLevel: 41, \notesLevel: 42, \droneLevel: 43, \masterVol: 44, \calmness: 45, \chaosDepth: 46, \weightEvolve: 47, \noteDensity: 48, \reverbRoomBase: 49, \filterCutoffBase: 50, \textureDuck: 51, \moodRaw: 52, \auxInEnable: 53, \auxInLevel: 54, \auxInBlend: 55);
 	~feedbackMap.put(\dnbVol, 56).put(\dnbChaos, 57).put(\dnbRoll, 58).put(\dnbRateOffset, 59).put(\dnbRev, 66).put(\dnbTargetBpm, 67).put(\dnbSourceBpm, 68).put(\dnbStutter, 69).put(\dnbBreakHPF, 76).put(\dnbKickAmp, 77).put(\dnbSidechainDepth, 78);
@@ -433,7 +512,7 @@ s.waitForBoot {
 		"MIDI profile saved.".postln;
 	};
 	~loadMidiProfile = {
-		if(PathName(~midiProfilePath).exists) {
+		if(PathName(~midiProfilePath).isFile) {
 			var d = Object.readArchive(~midiProfilePath);
 			if(d.notNil) {
 				if(d[\midiMap].notNil) { ~midiMap = d[\midiMap].copy; };
@@ -526,6 +605,26 @@ s.waitForBoot {
 		wet = FreeVerb2.ar(dry[0], dry[1], mix: 0.25, room: 0.7, damp: 0.45);
 		Out.ar(out, SelectX.ar(revMix.clip(0, 0.4), [dry, wet]));
 	}).add;
+	SynthDef(\vocalGranCloud, { |out=0, buf=0, gate=1, amp=0.14, rate=1.0, pos=0.5, posJitter=0.18, grainDur=0.16, density=10, panWidth=0.6, hpf=120, lpf=8500, revMix=0.2|
+		var env, trig, centerPos, pan, sig, dry, wet;
+		var rateSm, ampSm, posSm, jitterSm, durSm, densSm, panSm;
+		rateSm = Lag.kr(rate.clip(0.25, 2.0), 0.08);
+		ampSm = Lag.kr(amp.clip(0, 0.5), 0.08);
+		posSm = Lag.kr(pos.clip(0, 1), 0.08);
+		jitterSm = Lag.kr(posJitter.clip(0, 0.45), 0.1);
+		durSm = Lag.kr(grainDur.clip(0.02, 0.5), 0.08);
+		densSm = Lag.kr(density.clip(1, 80), 0.08);
+		panSm = Lag.kr(panWidth.clip(0, 1), 0.1);
+		env = EnvGen.kr(Env.asr(0.2, 1, 1.2), gate, doneAction: 2);
+		trig = Dust.kr(densSm);
+		centerPos = (posSm + LFNoise1.kr(6).range((0 - jitterSm), jitterSm)).clip(0.001, 0.999) * BufDur.kr(buf);
+		pan = LFNoise1.kr(8).range((0 - panSm), panSm);
+		sig = TGrains.ar(2, trig, buf, BufRateScale.kr(buf) * rateSm, centerPos, durSm, pan, 1.0, 4);
+		dry = HPF.ar(LPF.ar(sig, lpf.clip(500, 14000)), hpf.clip(40, 1200));
+		dry = LeakDC.ar(dry) * ampSm * env;
+		wet = FreeVerb2.ar(dry[0], dry[1], mix: 0.28, room: 0.82, damp: 0.4);
+		Out.ar(out, SelectX.ar(revMix.clip(0, 1), [dry, wet]));
+	}).add;
 	~setDnbParam = { |param, value|
 		case
 		{ param == \dnbVol } { ~dnb[\vol] = value.clip(0, 1) }
@@ -562,6 +661,17 @@ s.waitForBoot {
 			});
 		};
 	};
+	~loadBreakByIndex = { |idx=0|
+		var paths = ~breakPaths ? [];
+		var path = paths.wrapAt(idx.asInteger);
+		var bpm;
+		if(path.notNil) {
+			~loadDnbSample.(path);
+			bpm = ~getSampleSourceBpm.(path, (~paramState[\dnbSourceBpm] ? 170));
+			~setParam.(\dnbSourceBpm, bpm, true);
+			("Break loaded [" ++ idx ++ "]: " ++ path ++ " | sourceBpm=" ++ bpm).postln;
+		};
+	};
 	~makeDnbPattern = {
 		Pbind(
 			\instrument, \dnbSlicePlayer,
@@ -591,7 +701,7 @@ s.waitForBoot {
 					[0.8, 0.2],
 					inf
 				)
-			},
+			),
 			\rate, Pfunc {
 				// Tempo-adaptive playback (not locked to 170):
 				// rate = targetBpm / sourceBpm * rateOffset
@@ -642,6 +752,87 @@ s.waitForBoot {
 	~stopDnb = {
 		if(~dnb[\player].notNil) { ~dnb[\player].stop; ~dnb[\player] = nil; };
 		"DnB player stopped.".postln;
+	};
+	~toggleDnb = {
+		if(~dnb[\player].notNil) {
+			~stopDnb.value;
+		} {
+			if(~dnb[\buf].isNil and: { (~breakPaths ? []).notEmpty }) {
+				~loadBreakByIndex.((~breakPaths ? []).size.rand);
+			};
+			~startDnb.value;
+		};
+	};
+	// -------------------------
+	// Vocal Granular Subsystem
+	// -------------------------
+	~vocal = (
+		buf: nil, synth: nil, idx: 0,
+		amp: 0.14, rate: 1.0, pos: 0.5, posJitter: 0.18, grainDur: 0.16, density: 10,
+		panWidth: 0.6, hpf: 120, lpf: 8500, rev: 0.2
+	);
+	~setVocalParam = { |param, value|
+		case
+		{ param == \vocalAmp } { ~vocal[\amp] = value.clip(0, 0.5) }
+		{ param == \vocalRate } { ~vocal[\rate] = value.clip(0.25, 2.0) }
+		{ param == \vocalPos } { ~vocal[\pos] = value.clip(0, 1) }
+		{ param == \vocalJitter } { ~vocal[\posJitter] = value.clip(0, 0.45) }
+		{ param == \vocalGrainDur } { ~vocal[\grainDur] = value.clip(0.02, 0.5) }
+		{ param == \vocalDensity } { ~vocal[\density] = value.clip(1, 80) }
+		{ param == \vocalPanWidth } { ~vocal[\panWidth] = value.clip(0, 1) }
+		{ param == \vocalHpf } { ~vocal[\hpf] = value.clip(40, 1200) }
+		{ param == \vocalLpf } { ~vocal[\lpf] = value.clip(500, 14000) }
+		{ param == \vocalRev } { ~vocal[\rev] = value.clip(0, 1) };
+		if(~vocal[\synth].notNil) {
+			~vocal[\synth].set(
+				\amp, ~vocal[\amp], \rate, ~vocal[\rate], \pos, ~vocal[\pos], \posJitter, ~vocal[\posJitter],
+				\grainDur, ~vocal[\grainDur], \density, ~vocal[\density], \panWidth, ~vocal[\panWidth],
+				\hpf, ~vocal[\hpf], \lpf, ~vocal[\lpf], \revMix, ~vocal[\rev]
+			);
+		};
+	};
+	~loadVocalSample = { |path|
+		if(path.notNil and: { path.size > 0 }) {
+			if(~vocal[\buf].notNil) { ~vocal[\buf].free; };
+			~vocal[\buf] = Buffer.read(s, path, action: { ("Vocal loaded: " ++ path).postln; });
+			~vocal[\path] = path;
+		};
+	};
+	~loadVocalByIndex = { |idx=0|
+		var paths = ~vocalPaths ? [];
+		var path = paths.wrapAt(idx.asInteger);
+		if(path.notNil) {
+			~vocal[\idx] = idx.asInteger;
+			~loadVocalSample.(path);
+		};
+	};
+	~startVocalGranular = {
+		if(~vocal[\buf].isNil) {
+			"Vocal start aborted: load a vocal sample first.".postln;
+		} {
+			~stopVocalGranular.value;
+			~vocal[\synth] = Synth(\vocalGranCloud, [
+				\out, ~mainOutBus ? 0, \buf, ~vocal[\buf],
+				\amp, ~vocal[\amp], \rate, ~vocal[\rate], \pos, ~vocal[\pos], \posJitter, ~vocal[\posJitter],
+				\grainDur, ~vocal[\grainDur], \density, ~vocal[\density], \panWidth, ~vocal[\panWidth],
+				\hpf, ~vocal[\hpf], \lpf, ~vocal[\lpf], \revMix, ~vocal[\rev]
+			]);
+			"Vocal granular started.".postln;
+		};
+	};
+	~stopVocalGranular = {
+		if(~vocal[\synth].notNil) { ~vocal[\synth].set(\gate, 0); ~vocal[\synth] = nil; };
+		"Vocal granular stopped.".postln;
+	};
+	~toggleVocalGranular = {
+		if(~vocal[\synth].notNil) {
+			~stopVocalGranular.value;
+		} {
+			if(~vocal[\buf].isNil and: { (~vocalPaths ? []).notEmpty }) {
+				~loadVocalByIndex.((~vocalPaths ? []).size.rand);
+			};
+			~startVocalGranular.value;
+		};
 	};
 	~sendStatusFeedback = { |name, value|
 		var cc, v;
@@ -751,7 +942,7 @@ s.waitForBoot {
 			var spec = ~paramSpecs[param];
 			var min = spec[0], max = spec[1], curve = spec[2];
 			~ccDefs.add(
-				CCdef(("shiftko_cc_" ++ cc).asSymbol, { |val|
+				MIDIdef.cc(("shiftko_cc_" ++ cc).asSymbol, { |val|
 					var mapped, cur, picked, tol, strictLocked;
 					var last, deadband;
 					mapped = if(curve == \exp) { val.linexp(0, 127, min, max) } { val.linlin(0, 127, min, max) };
@@ -787,7 +978,7 @@ s.waitForBoot {
 			var spec = ~paramSpecs[param];
 			var min = spec[0], max = spec[1];
 			~ccDefs.add(
-				CCdef(("shiftko_enc_" ++ cc).asSymbol, { |val|
+				MIDIdef.cc(("shiftko_enc_" ++ cc).asSymbol, { |val|
 					var dir, cur, next;
 					dir = ~decodeRelative.(val);
 					if(dir != 0) {
@@ -950,7 +1141,7 @@ s.waitForBoot {
 			var cur = ~paramState[k] ? ((min + max) * 0.5);
 			var span = (max - min);
 			var jitter = if(curve == \exp) {
-				var f = (1 + rrand(-amount, amount)).clip(0.2, 5.0);
+				var f = (1 + rrand((0 - amount), amount)).clip(0.2, 5.0);
 				(cur * f).clip(min, max);
 			} {
 				(cur + (span * amount * rrand(-1.0, 1.0))).clip(min, max);
@@ -1051,7 +1242,7 @@ s.waitForBoot {
 		"Arrangement macro file saved.".postln;
 	};
 	~loadArrangementMacrosFile = {
-		if(PathName(~arrangementMacroPath).exists) {
+		if(PathName(~arrangementMacroPath).isFile) {
 			var d = Object.readArchive(~arrangementMacroPath);
 			if(d.notNil) {
 				~arrangementMacros = IdentityDictionary.new;
@@ -1096,6 +1287,16 @@ s.waitForBoot {
 			{ ~arrangementStatusText.string = "Arrangement: " ++ name.asString; }.defer;
 		};
 	};
+	~applyArrangementPhaseNow = { |phase=\intro|
+		if(~arrangementPhaseSets[phase].notNil) {
+			~arrangementPhase = phase;
+			~applyParams.(~arrangementPhaseSets[phase], true);
+			~lockPickupForParams.(~arrangementPhaseSets[phase].clump(2).collect { |p| p[0] });
+			if(~arrangementStatusText.notNil) {
+				{ ~arrangementStatusText.string = "Arrangement: " ++ phase.asString ++ " (manual)"; }.defer;
+			};
+		};
+	};
 	~stopArrangement = {
 		if(~arrangementTask.notNil) { ~arrangementTask.stop; ~arrangementTask = nil; };
 		~arrangementEnabled = false;
@@ -1122,19 +1323,33 @@ s.waitForBoot {
 
 	// Live-Performance-UI: Slider, Buttons und Encoder-Knoepfe
 	{
-		var win, mkSlider, mkKnob, mkToggle, mkWeightSlider, autoSceneBtn, arrangementBtn;
+		var win, mkSlider, mkKnob, mkToggle, mkStateToggle, mkWeightSlider, autoSceneBtn, arrangementBtn, mkVocalKnob;
 		var midiOutBtn, fbPageMenu, fbRateKnob, sceneMorphKnob;
 		var learnParamMenu, learnTypeMenu, learnBtn;
 		var learnParams, monitorText, cpuGuardBtn;
-		var dnbPageMenu;
-		var arrPhaseMenu, arrParamMenu, arrEditNum, arrApplyBtn, arrEditPhase, arrEditParam, updateArrEditor;
+		var dnbPageMenu, vocalPathText;
+		var arrPhaseMenu, arrParamMenu, arrEditNum, arrApplyBtn, arrApplyPhaseBtn, arrEditPhase, arrEditParam, updateArrEditor;
+		var uiModeBtn, applyUiMode, basicUiMode;
 		var x = 10, y = 10, w = 190, h = 58, gapY = 62;
 
 		// Alte Instanz vermeiden, falls Script erneut ausgefuehrt wird.
 		if(~shiftkoWin.notNil) { ~shiftkoWin.close; };
 
-		win = Window("SHIFTKO Live Control", Rect(100, 80, 1040, 760)).front.alwaysOnTop_(true);
+		win = Window("SHIFTKO Live Control", Rect(100, 80, 1320, 920)).front.alwaysOnTop_(true);
 		~shiftkoWin = win;
+		basicUiMode = true;
+		applyUiMode = { |isBasic|
+			win.view.children.do { |v|
+				var b = v.bounds;
+				var keepInBasic = (
+					((b.top < 170) and: { b.left < 760 }) // core engine controls only
+					or: { (b.left >= 360) and: { (b.top >= 450) and: { b.top < 590 } } } // save/load/reset essentials
+					or: { (b.left >= 340) and: { b.top >= 590 } } // DnB + Vocal blocks
+				);
+				v.visible = if(isBasic) { keepInBasic } { true };
+			};
+			if(uiModeBtn.notNil) { uiModeBtn.visible = true; };
+		};
 
 		mkSlider = { |label, param, min, max, init, posX, posY|
 			var txt, sl, num;
@@ -1183,6 +1398,23 @@ s.waitForBoot {
 				var vv = v.clip(min, max);
 				num.value = vv;
 				kb.value = vv.linlin(min, max, 0, 1);
+			});
+		};
+		mkVocalKnob = { |label, param, min, max, init, posX, posY|
+			var txt, kb, num;
+			txt = StaticText(win, Rect(posX, posY, 90, 20)).string_(label);
+			kb = Knob(win, Rect(posX + 95, posY - 8, 46, 46)).value_((init - min) / (max - min));
+			num = NumberBox(win, Rect(posX + 150, posY, 70, 20)).value_(init.clip(min, max));
+			kb.action_({
+				var v = kb.value.linlin(0, 1, min, max);
+				num.value = v;
+				~setVocalParam.(param, v);
+			});
+			num.action_({
+				var v = num.value.clip(min, max);
+				num.value = v;
+				kb.value = v.linlin(min, max, 0, 1);
+				~setVocalParam.(param, v);
 			});
 		};
 
@@ -1258,6 +1490,16 @@ s.waitForBoot {
 		mkToggle.("Texture Gate", \textureGate, 1, x, y); y = y + 34;
 		mkToggle.("Macro Gate", \macroGate, 1, x, y);
 		mkToggle.("SAFE Mode", \safeMode, 1, x + 130, 20);
+		uiModeBtn = Button(win, Rect(1160, 20, 150, 24))
+			.states_([
+				["BASIC UI ON", Color.black, Color.green(0.7)],
+				["BASIC UI OFF", Color.white, Color.red]
+			])
+			.value_(0)
+			.action_({ |bt|
+				basicUiMode = (bt.value == 0);
+				applyUiMode.(basicUiMode);
+			});
 		mkStateToggle.("FULL MIX", "NOTES SOLO", \mixMode, 0, x + 130, 54);
 		StaticText(win, Rect(x + 130, 86, 110, 20)).string_("Scene Speed");
 		Knob(win, Rect(x + 235, 78, 46, 46))
@@ -1325,6 +1567,9 @@ s.waitForBoot {
 				~setArrangementParam.(arrEditPhase, arrEditParam, arrEditNum.value, true);
 				updateArrEditor.value;
 			});
+		arrApplyPhaseBtn = Button(win, Rect(1040, 224, 178, 22))
+			.states_([["APPLY PHASE NOW", Color.black, Color.cyan(0.75)]])
+			.action_({ ~applyArrangementPhaseNow.(arrEditPhase); });
 		updateArrEditor.value;
 		StaticText(win, Rect(760, 146, 44, 20)).string_("I sec");
 		~arrIntroDurBox = NumberBox(win, Rect(798, 144, 48, 22))
@@ -1443,6 +1688,22 @@ s.waitForBoot {
 				if(~strictPickupMode) { ~lockAllMappedPickups.value; };
 				("Strict pickup: " ++ ~strictPickupMode).postln;
 			});
+		Button(win, Rect(560, 336, 190, 28))
+			.states_([
+				["PERF SAFE LOCK OFF", Color.white, Color.red],
+				["PERF SAFE LOCK ON", Color.black, Color.green]
+			])
+			.value_(if(~performanceSafeLock) { 1 } { 0 })
+			.action_({ |bt|
+				~performanceSafeLock = (bt.value == 1);
+				if(~performanceSafeLock) {
+					~performanceSafeCaps.keysValuesDo { |k, cap|
+						var v = ~paramState[k];
+						if(v.notNil and: { v > cap }) { ~setParam.(k, cap, true); };
+					};
+				};
+				("Performance safe lock: " ++ ~performanceSafeLock).postln;
+			});
 		Button(win, Rect(560, 374, 190, 28))
 			.states_([
 				["PICKUP OVERRIDE OFF", Color.white, Color.gray(0.5)],
@@ -1509,6 +1770,9 @@ s.waitForBoot {
 		Button(win, Rect(360, 488, 190, 28))
 			.states_([["LOAD SESSION", Color.black, Color.gray(0.78)]])
 			.action_({ ~loadState.value; });
+		Button(win, Rect(560, 526, 190, 28))
+			.states_([["RESET SESSION", Color.white, Color.red]])
+			.action_({ ~applyParams.(~defaultState, true); });
 		Button(win, Rect(160, 488, 190, 28))
 			.states_([["SAVE MIDI PROFILE", Color.black, Color.gray(0.75)]])
 			.action_({ ~saveMidiProfile.value; });
@@ -1571,19 +1835,18 @@ s.waitForBoot {
 			}
 		}).play(AppClock);
 
-		// DnB/Jungle Control Block
+		// DnB/Jungle Control Block (simplified)
 		StaticText(win, Rect(360, 590, 170, 20)).string_("DnB / Jungle Slicer");
-		Button(win, Rect(360, 616, 120, 24))
-			.states_([["LOAD BREAK", Color.black, Color.yellow]])
+		Button(win, Rect(360, 616, 140, 24))
+			.states_([["DNB OFF", Color.white, Color.red], ["DNB ON", Color.black, Color.green]])
+			.value_(0)
+			.action_({ |bt| ~toggleDnb.value; bt.value = if(~dnb[\player].notNil) { 1 } { 0 }; });
+		Button(win, Rect(506, 616, 120, 24))
+			.states_([["NEXT BREAK", Color.black, Color.yellow]])
 			.action_({
-				Dialog.openPanel({ |path| ~loadDnbSample.(path); });
+				~loadBreakByIndex.((~breakPaths ? []).size.rand);
+				if(~dnb[\player].notNil) { ~startDnb.value; };
 			});
-		Button(win, Rect(486, 616, 92, 24))
-			.states_([["DNB START", Color.black, Color.green]])
-			.action_({ ~startDnb.value; });
-		Button(win, Rect(584, 616, 92, 24))
-			.states_([["DNB STOP", Color.white, Color.red]])
-			.action_({ ~stopDnb.value; });
 		mkKnob.("DnB Vol", \dnbVol, 0, 1, ~paramState[\dnbVol] ? 0.0, 360, 648);
 		mkKnob.("Chaos", \dnbChaos, 0, 1, ~paramState[\dnbChaos] ? 0.3, 530, 648);
 		mkKnob.("Roll", \dnbRoll, 0, 1, ~paramState[\dnbRoll] ? 0.0, 700, 648);
@@ -1605,21 +1868,53 @@ s.waitForBoot {
 				~sendStatusFeedback.(\feedbackPage, ~feedbackPageIndex.(~feedbackPage));
 				if(~midiFeedback) { ~sendFeedbackPageSnapshot.value; };
 			});
+		// Vocal Granular Block (simplified)
+		StaticText(win, Rect(360, 790, 190, 20)).string_("Vocal Granular");
+		Button(win, Rect(360, 816, 140, 24))
+			.states_([["VOC OFF", Color.white, Color.red], ["VOC ON", Color.black, Color.green]])
+			.value_(0)
+			.action_({
+				|bt|
+				~toggleVocalGranular.value;
+				bt.value = if(~vocal[\synth].notNil) { 1 } { 0 };
+				if(vocalPathText.notNil and: { ~vocal[\path].notNil }) { vocalPathText.string = ("Vocal: " ++ PathName(~vocal[\path]).fileName); };
+			});
+		Button(win, Rect(506, 816, 120, 24))
+			.states_([["NEXT VOCAL", Color.black, Color.cyan(0.75)]])
+			.action_({
+				var idx = (~vocalPaths ? []).size.rand;
+				~loadVocalByIndex.(idx);
+				if(vocalPathText.notNil) { vocalPathText.string = ("Vocal: " ++ PathName((~vocalPaths ? [])[idx]).fileName); };
+				if(~vocal[\synth].notNil) { ~startVocalGranular.value; };
+			});
+		vocalPathText = StaticText(win, Rect(808, 818, 420, 20)).string_("Vocal: (none)");
+		mkVocalKnob.("V Amp", \vocalAmp, 0, 0.5, ~vocal[\amp] ? 0.14, 360, 850);
+		mkVocalKnob.("V Rate", \vocalRate, 0.25, 2.0, ~vocal[\rate] ? 1.0, 530, 850);
+		mkVocalKnob.("V Pos", \vocalPos, 0, 1, ~vocal[\pos] ? 0.5, 700, 850);
+		mkVocalKnob.("V Jitter", \vocalJitter, 0, 0.45, ~vocal[\posJitter] ? 0.18, 870, 850);
+		mkVocalKnob.("V Dur", \vocalGrainDur, 0.02, 0.5, ~vocal[\grainDur] ? 0.16, 1040, 850);
+		mkVocalKnob.("V Dens", \vocalDensity, 1, 80, ~vocal[\density] ? 10, 1210, 850);
+		mkVocalKnob.("V HPF", \vocalHpf, 40, 1200, ~vocal[\hpf] ? 120, 360, 882);
+		mkVocalKnob.("V LPF", \vocalLpf, 500, 14000, ~vocal[\lpf] ? 8500, 530, 882);
+		mkVocalKnob.("V Rev", \vocalRev, 0, 1, ~vocal[\rev] ? 0.2, 700, 882);
+		mkVocalKnob.("V Pan", \vocalPanWidth, 0, 1, ~vocal[\panWidth] ? 0.6, 870, 882);
 
 		~loadArrangementMacrosFile.value;
 		~loadState.value;
-		if(PathName(~defaultDnbBreakPath).exists) {
+		if(PathName(~defaultDnbBreakPath).isFile) {
 			~loadDnbSample.(~defaultDnbBreakPath);
-			~setParam.(\dnbSourceBpm, 170, true);
+			~setParam.(\dnbSourceBpm, ~getSampleSourceBpm.(~defaultDnbBreakPath, 170), true);
 		};
 		~setupMidi.value;
 		if(~strictPickupMode) { ~lockAllMappedPickups.value; };
 		~setupMidiOut.value;
+		applyUiMode.(basicUiMode);
 		win.onClose_({
 			if(~monitorTask.notNil) { ~monitorTask.stop; ~monitorTask = nil; };
 			~stopOledTask.value;
 			~closeVisualDashboard.value;
 			~stopDnb.value;
+			~stopVocalGranular.value;
 			~stopArrangement.value;
 			~saveArrangementMacrosFile.value;
 			~saveState.value;
