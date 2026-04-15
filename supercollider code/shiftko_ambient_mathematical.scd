@@ -990,8 +990,9 @@ SynthDef(\vocalGranCloud, { |out=0, buf=0, gate=1, amp=0.2, rate=1.0, pos=0.5, p
 				Pfunc { (~dnb[\vol] ? 0.0).clip(0, 1) * 0.90 }
 			),
 			\sidechain, Pfunc { (~dnb[\sidechainDepth] ? 0.18).clip(0, 0.6) },
-			\amp, Pkey(\baseAmp) * (1 - Pkey(\sidechain)),
-			\cutoff, Pif(Pkey(\isGhost) > 0, 1200, 15000),
+			// Keep these as floats so Pwhite generates smooth values (not hard integer steps).
+			\amp, (Pkey(\baseAmp) * (1 - Pkey(\sidechain))) * Pwhite(0.9, 1.1, inf),
+			\cutoff, Pif(Pkey(\isGhost) > 0, Pwhite(900.0, 2200.0, inf), Pwhite(8500.0, 16000.0, inf)),
 			\revMix, Pfunc { (~dnb[\rev] ? 0.12).clip(0, 1) },
 			\pan, Pwhite(-0.12, 0.12, inf)
 		)
@@ -1098,7 +1099,7 @@ SynthDef(\vocalGranCloud, { |out=0, buf=0, gate=1, amp=0.2, rate=1.0, pos=0.5, p
 					var oct = [1, 2, 4].wchoose([0.52, 0.36, 0.12]);
 					root * ratio * oct
 				},
-				\bright, Pkey(\amp).linlin(0.001, 0.22, 1800, 9000).clip(1400, 9800),
+				\bright, (Pkey(\amp).linlin(0.001, 0.22, 1800, 9000) * Pwhite(0.92, 1.08, inf)).clip(1400, 9800),
 				\pan, Pkey(\freq).linlin(120, 4000, -0.58, 0.58).clip(-0.72, 0.72),
 				\rate, Pkey(\pan).linlin(-0.72, 0.72, 0.94, 1.06),
 				\rel, Pfunc {
