@@ -1052,8 +1052,32 @@ SynthDef(\vocalGranCloud, { |out=0, buf=0, gate=1, amp=0.2, rate=1.0, pos=0.5, p
 	];
 	~makeAmbientRhythmPattern = {
 		Plazy({
-			var mode = [\flow, \sparse, \ratchet, \euclid].wchoose([0.38, 0.22, 0.2, 0.2]);
+			var mode = [\flow, \sparse, \ratchet, \euclid, \lsys].wchoose([0.32, 0.2, 0.18, 0.18, 0.12]);
 			var euclidSeed = (~ambientEuclidSeeds ? [[1, 0, 0, 1, 0, 0, 1, 0]]).choose;
+			var lsysDurRaw = Prewrite(
+				0,
+				(
+					0: #[0, 1, 2],
+					1: #[0, 2, 1, 0],
+					2: #[1, 0, 2]
+				),
+				5
+			);
+			var lsysAmpRaw = Prewrite(
+				1,
+				(
+					0: #[0, 1],
+					1: #[2, 1, 0],
+					2: #[1, 2]
+				),
+				4
+			);
+			var lsysDurPat = Pcollect({ |x|
+				[0.25, 0.5, 0.75].wrapAt(x.asInteger);
+			}, lsysDurRaw);
+			var lsysAmpGatePat = Pcollect({ |x|
+				[0.0, 1.0, 0.7].wrapAt(x.asInteger);
+			}, lsysAmpRaw);
 			var durPat = switch(mode,
 				\flow, {
 					Prand([
@@ -1071,6 +1095,9 @@ SynthDef(\vocalGranCloud, { |out=0, buf=0, gate=1, amp=0.2, rate=1.0, pos=0.5, p
 						Pwrand([0.5, 0.25, 0.125], [0.34, 0.42, 0.24], inf)
 					)
 				},
+				\lsys, {
+					lsysDurPat
+				},
 				{
 					Pseq([0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5], inf)
 				}
@@ -1087,11 +1114,12 @@ SynthDef(\vocalGranCloud, { |out=0, buf=0, gate=1, amp=0.2, rate=1.0, pos=0.5, p
 				},
 				\ghost, Pwrand([0, 1], [0.76, 0.24], inf),
 				\euclidGate, if(mode == \euclid) { Pseq(euclidSeed, inf) } { 1 },
+				\lsysGate, if(mode == \lsys) { lsysAmpGatePat } { 1.0 },
 				\amp, Pif(
 					Pkey(\ghost) > 0,
 					Pkey(\baseAmp) * 0.33,
 					Pkey(\baseAmp) * Pwhite(0.82, 1.18, inf)
-				) * Pkey(\euclidGate),
+				) * Pkey(\euclidGate) * Pkey(\lsysGate),
 				\isRest, Pif(Pkey(\amp) > 0, false, true),
 				\freq, Pfunc {
 					var root = (~paramState[\rootHz] ? 256).clip(64, 768);
