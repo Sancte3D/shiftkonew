@@ -749,6 +749,19 @@ s.waitForBoot {
 		wet = FreeVerb2.ar(dry[0], dry[1], mix: 0.25, room: 0.7, damp: 0.45);
 		Out.ar(out, SelectX.ar(revMix.clip(0, 0.4), [dry, wet]));
 	}).add;
+	SynthDef(\ambientPulse, { |out=0, freq=440, amp=0.08, pan=0, rel=1.2, bright=4200, rate=1.0|
+		var env, exciter, tone, sig, cutoff;
+		env = EnvGen.kr(Env.perc(0.002, rel.clip(0.2, 4.0), 1, -5), doneAction: 2);
+		exciter = HPF.ar(PinkNoise.ar(0.22), 1400) * EnvGen.kr(Env.perc(0.0007, 0.01, 1, -8));
+		tone = SinOsc.ar(freq.clip(90, 9000) * rate.clip(0.7, 1.3), 0, 0.62) + (SinOsc.ar(freq * 2.01 * rate, 0, 0.28));
+		cutoff = Lag.kr(bright.clip(900, 12000), 0.05);
+		sig = (tone + exciter) * env * amp.clip(0, 0.3);
+		sig = RLPF.ar(sig, cutoff, 0.42);
+		sig = HPF.ar(sig, 180);
+		sig = Pan2.ar(sig, pan.clip(-1, 1));
+		sig = FreeVerb2.ar(sig[0], sig[1], mix: 0.22, room: 0.9, damp: 0.45);
+		Out.ar(out, sig.clip2(0.45));
+	}).add;
 SynthDef(\vocalGranCloud, { |out=0, buf=0, gate=1, amp=0.2, rate=1.0, pos=0.5, posJitter=0.18, grainDur=0.16, density=10, panWidth=0.6, hpf=120, lpf=8500, revMix=0.2|
 		var env, trig, centerPos, pan, sig, dry, wet;
 		var rateSm, ampSm, posSm, jitterSm, durSm, densSm, panSm;
@@ -954,6 +967,91 @@ SynthDef(\vocalGranCloud, { |out=0, buf=0, gate=1, amp=0.2, rate=1.0, pos=0.5, p
 			};
 			~startDnb.value;
 		};
+	};
+	// -------------------------
+	// Generative Ambient Rhythm Subsystem (Pbind-first)
+	// -------------------------
+	~ambientRhythm = (
+		player: nil,
+		clock: TempoClock.new(1.0),
+		activeMode: \flow
+	);
+	~ambientEuclidSeeds = [
+		[1, 0, 0, 1, 0, 0, 1, 0],
+		[1, 0, 1, 0, 1, 0, 0, 0],
+		[1, 0, 0, 1, 0, 1, 0, 0]
+	];
+	~makeAmbientRhythmPattern = {
+		Plazy({
+			var mode = [\flow, \sparse, \ratchet, \euclid].wchoose([0.38, 0.22, 0.2, 0.2]);
+			var euclidSeed = (~ambientEuclidSeeds ? [[1, 0, 0, 1, 0, 0, 1, 0]]).choose;
+			var durPat = switch(mode,
+				\flow, {
+					Prand([
+						Pseq([0.75, 0.5, 1.0, 1.25], 1),
+						Pseq([1.0, 0.5, 0.5, 1.5], 1),
+						Pseq([0.5, 0.25, 0.75, 1.5], 1)
+					], inf)
+				},
+				\sparse, {
+					Prand([Pseq([1.5, 2.0, 1.0], 1), Pseq([2.0, 1.0, 1.0], 1)], inf)
+				},
+				\ratchet, {
+					Pdup(
+						Pwrand([1, 2, 3], [0.55, 0.33, 0.12], inf),
+						Pwrand([0.5, 0.25, 0.125], [0.34, 0.42, 0.24], inf)
+					)
+				},
+				{
+					Pseq([0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5], inf)
+				}
+			);
+			~ambientRhythm[\activeMode] = mode;
+			Pbind(
+				\instrument, \ambientPulse,
+				\out, Pfunc { ~mainOutBus ? 0 },
+				\dur, durPat,
+				\baseAmp, Pfunc {
+					var notesLvl = (~paramState[\notesLevel] ? 0.5).clip(0, 0.8);
+					var calm = (~paramState[\calmness] ? 0.6).clip(0, 1);
+					(notesLvl * calm.linlin(0, 1, 0.28, 0.48)).clip(0.01, 0.22)
+				},
+				\ghost, Pwrand([0, 1], [0.76, 0.24], inf),
+				\euclidGate, if(mode == \euclid) { Pseq(euclidSeed, inf) } { 1 },
+				\amp, Pif(
+					Pkey(\ghost) > 0,
+					Pkey(\baseAmp) * 0.33,
+					Pkey(\baseAmp) * Pwhite(0.82, 1.18, inf)
+				) * Pkey(\euclidGate),
+				\isRest, Pif(Pkey(\amp) > 0, false, true),
+				\freq, Pfunc {
+					var root = (~paramState[\rootHz] ? 256).clip(64, 768);
+					var ratio = [1, 5/4, 3/2, 2].wchoose([0.36, 0.24, 0.26, 0.14]);
+					var oct = [1, 2, 4].wchoose([0.52, 0.36, 0.12]);
+					root * ratio * oct
+				},
+				\bright, Pkey(\amp).linlin(0.001, 0.22, 1800, 9000).clip(1400, 9800),
+				\pan, Pkey(\freq).linlin(120, 4000, -0.58, 0.58).clip(-0.72, 0.72),
+				\rate, Pkey(\pan).linlin(-0.72, 0.72, 0.94, 1.06),
+				\rel, Pfunc {
+					var dream = (~paramState[\dreamDepth] ? 0.35).clip(0, 1);
+					(dream.linlin(0, 1, 0.65, 2.8) * [0.85, 1.0, 1.25].choose).clip(0.28, 3.5)
+				}
+			)
+		})
+	};
+	~startAmbientRhythm = {
+		~stopAmbientRhythm.value;
+		~ambientRhythm[\clock].tempo = (((~paramState[\bpm] ? 60).clip(30, 100)) / 60) * 0.5;
+		~ambientRhythm[\player] = ~makeAmbientRhythmPattern.value.play(~ambientRhythm[\clock], quant: 1);
+		("Ambient rhythm started (" ++ (~ambientRhythm[\activeMode] ? \flow) ++ ").").postln;
+	};
+	~stopAmbientRhythm = {
+		if(~ambientRhythm[\player].notNil) { ~ambientRhythm[\player].stop; ~ambientRhythm[\player] = nil; };
+		"Ambient rhythm stopped.".postln;
+	};
+	~toggleAmbientRhythm = {
+		if(~ambientRhythm[\player].notNil) { ~stopAmbientRhythm.value } { ~startAmbientRhythm.value };
 	};
 	// -------------------------
 	// Vocal Granular Subsystem
@@ -1248,6 +1346,7 @@ SynthDef(\vocalGranCloud, { |out=0, buf=0, gate=1, amp=0.2, rate=1.0, pos=0.5, p
 			\masterVol, 0.001,
 			\auxInEnable, 0, \auxInLevel, 0.0, \auxInBlend, 0.0
 		], true);
+		~stopAmbientRhythm.value;
 		~stopAutoScenes.value;
 		"PANIC: output silenced.".postln;
 	};
@@ -1664,10 +1763,12 @@ SynthDef(\vocalGranCloud, { |out=0, buf=0, gate=1, amp=0.2, rate=1.0, pos=0.5, p
 		~midiDebug = false;
 		~midiFeedback = false;
 		~stopOledTask.value;
+		~startAmbientRhythm.value;
 
 		win.onClose_({
 			~stopDnb.value;
 			~stopVocalGranular.value;
+			~stopAmbientRhythm.value;
 			~stopOledTask.value;
 			~saveState.value;
 			~stopMidi.value;
