@@ -40,6 +40,7 @@ s.waitForBoot {
 		chaosDepth=0.12, safeMode=1, mixMode=0, textureDuck=0.6, weightEvolve=0,
 		noteDensity=0.9, calmness=0.5, auxInEnable=0, auxInLevel=0.0, auxInBlend=0.0,
 		autoGainProtect=1, loudnessTarget=0.26, dreamMode=1, dreamDepth=0.35,
+		shimmerFb=0.52,
 		bellLevel=0.12,
 		ambientFreeRun=1, ambientRateHz=0.11
 	|
@@ -59,7 +60,8 @@ s.waitForBoot {
 		var dryL, dryR, wetL, wetR, mix, hpSafety;
 		var protectOn, loudTarget, outEnv, gainGuard, dreamOn, dreamAmt;
 		var auxGate, auxLvl, auxBlend, auxL, auxR, auxSig;
-		var asyncA, asyncB, asyncC, slewChaos, meander, shimmer;
+		var asyncA, asyncB, asyncC, slewChaos, meander;
+		var shimmerFbSm, shimmerFbSafe, shimmerIn, shimmerSend, shimmerPitched;
 
 		// Alle kritischen Steuerwerte mit Lag.kr glätten (Anti-Zipper/Anti-Klick)
 		bpmS   = Lag.kr(bpm.clip(30, 100), 0.3);
@@ -99,6 +101,8 @@ s.waitForBoot {
 		loudTarget = Lag.kr(loudnessTarget.clip(0.12, 0.45), 0.8);
 		dreamOn = Lag.kr(dreamMode.clip(0, 1), 0.8);
 		dreamAmt = Lag.kr(dreamDepth.clip(0, 1), 1.0);
+		shimmerFbSm = Lag.kr(shimmerFb.clip(0, 0.95), 0.8);
+		shimmerFbSafe = (shimmerFbSm * dreamOn).clip(0, 0.95);
 		bellLvl = Lag.kr(bellLevel.clip(0, 0.45), 1.0);
 		asyncA = SinOsc.kr(0.07).range(0.9, 1.1); // ~14s cycle
 		asyncB = SinOsc.kr(0.13).range(0.92, 1.08); // ~7.7s cycle
@@ -243,6 +247,7 @@ s.waitForBoot {
 		dryR = SelectX.ar(mixModeSm, [dryR, notesSoloMix[1]]);
 		dryL = RLPF.ar(dryL, cutoff, 0.55);
 		dryR = RLPF.ar(dryR, cutoff * 0.99, 0.58);
+		shimmerIn = LocalIn.ar(2);
 
 		roomMulRnd = LFDNoise1.kr(1/600).range(0.75, 1.25);
 		roomCtrl = (roomBase * roomMulRnd * SelectX.kr(dreamOn, [1, asyncB])).clip(0.02, 0.88);
@@ -250,9 +255,15 @@ s.waitForBoot {
 		wetL = SelectX.ar(
 			hasJPverb.if(1, 0),
 			[
-				FreeVerb2.ar(dryL, dryR, mix: roomCtrl.linlin(0.02, 0.88, 0.18, 0.68), room: 0.84, damp: 0.52)[0],
+				FreeVerb2.ar(
+					dryL + (shimmerIn[0] * shimmerFbSafe),
+					dryR + (shimmerIn[1] * shimmerFbSafe),
+					mix: roomCtrl.linlin(0.02, 0.88, 0.18, 0.68),
+					room: 0.84,
+					damp: 0.52
+				)[0],
 				JPverb.ar(
-					dryL,
+					dryL + (shimmerIn[0] * shimmerFbSafe),
 					t60: SelectX.kr(dreamOn, [roomCtrl.linlin(0.02, 0.88, 0.8, 7.5), roomCtrl.linlin(0.02, 0.88, 20, 40)]),
 					damp: 0.45,
 					size: 2.8
@@ -262,18 +273,26 @@ s.waitForBoot {
 		wetR = SelectX.ar(
 			hasJPverb.if(1, 0),
 			[
-				FreeVerb2.ar(dryL, dryR, mix: roomCtrl.linlin(0.02, 0.88, 0.18, 0.68), room: 0.84, damp: 0.52)[1],
+				FreeVerb2.ar(
+					dryL + (shimmerIn[0] * shimmerFbSafe),
+					dryR + (shimmerIn[1] * shimmerFbSafe),
+					mix: roomCtrl.linlin(0.02, 0.88, 0.18, 0.68),
+					room: 0.84,
+					damp: 0.52
+				)[1],
 				JPverb.ar(
-					dryR,
+					dryR + (shimmerIn[1] * shimmerFbSafe),
 					t60: SelectX.kr(dreamOn, [roomCtrl.linlin(0.02, 0.88, 0.8, 7.5), roomCtrl.linlin(0.02, 0.88, 20, 40)]),
 					damp: 0.43,
 					size: 2.9
 				)
 			]
 		);
-		shimmer = PitchShift.ar([wetL, wetR], 0.2, 2.0, 0, 0.004);
-		wetL = wetL + (shimmer[0] * dreamOn * dreamAmt * 0.35);
-		wetR = wetR + (shimmer[1] * dreamOn * dreamAmt * 0.35);
+		shimmerPitched = PitchShift.ar([wetL, wetR], 0.1, 2.0, 0.01, 0.01);
+		shimmerSend = HPF.ar(shimmerPitched * dreamOn * dreamAmt * 0.42, 260).clip2(0.35);
+		LocalOut.ar(shimmerSend);
+		wetL = wetL + shimmerSend[0];
+		wetR = wetR + shimmerSend[1];
 		wetL = HPF.ar(wetL, 180);
 		wetR = HPF.ar(wetR, 180);
 
@@ -377,7 +396,7 @@ s.waitForBoot {
 	~defaultState = [
 		\safeMode, 1, \mixMode, 0, \chaosDepth, 0.12, \textureDuck, 0.6, \weightEvolve, 0.18, \noteDensity, 0.9, \calmness, 0.62,
 		\auxInEnable, 0, \auxInLevel, 0.0, \auxInBlend, 0.0,
-		\autoGainProtect, 1, \loudnessTarget, 0.26, \dreamMode, 1, \dreamDepth, 0.35, \bellLevel, 0.12, \ambientFreeRun, 1, \ambientRateHz, 0.11,
+		\autoGainProtect, 1, \loudnessTarget, 0.26, \dreamMode, 1, \dreamDepth, 0.35, \shimmerFb, 0.52, \bellLevel, 0.12, \ambientFreeRun, 1, \ambientRateHz, 0.11,
 		\dnbVol, 0.0, \dnbChaos, 0.3, \dnbRoll, 0.0, \dnbStutter, 0.08, \dnbBreakHPF, 90, \dnbKickAmp, 0.45, \dnbSidechainDepth, 0.18,
 		\dnbRateOffset, 1.0, \dnbRev, 0.12, \dnbTargetBpm, 170, \dnbSourceBpm, 170, \dnbEnergy, 0.35, \dnbTone, 0.45,
 		\vocalTexture, 0.45, \vocalTone, 0.45, \noiseType, 1,
@@ -550,7 +569,7 @@ s.waitForBoot {
 		droneLevel: [0.001, 0.8, \lin], notesLevel: [0.001, 0.8, \lin], noiseLevel: [0, 0.2, \lin], textureLevel: [0, 0.16, \lin],
 		chaosDepth: [0, 0.4, \lin], textureDuck: [0, 1, \lin], weightEvolve: [0, 1, \lin], noteDensity: [0.2, 1, \lin], calmness: [0, 1, \lin],
 		autoGainProtect: [0, 1, \lin], loudnessTarget: [0.12, 0.45, \lin], ambientFreeRun: [0, 1, \lin], ambientRateHz: [0.01, 1.0, \lin],
-		dreamMode: [0, 1, \lin], dreamDepth: [0, 1, \lin], bellLevel: [0, 0.45, \lin],
+		dreamMode: [0, 1, \lin], dreamDepth: [0, 1, \lin], shimmerFb: [0, 0.95, \lin], bellLevel: [0, 0.45, \lin],
 		dnbVol: [0, 1, \lin], dnbChaos: [0, 1, \lin], dnbRoll: [0, 1, \lin], dnbStutter: [0, 0.35, \lin], dnbBreakHPF: [30, 1200, \exp], dnbKickAmp: [0, 1, \lin], dnbSidechainDepth: [0, 0.6, \lin], dnbRateOffset: [0.25, 2.0, \lin], dnbRev: [0, 1, \lin], dnbTargetBpm: [80, 220, \lin], dnbSourceBpm: [60, 220, \lin], dnbEnergy: [0, 1, \lin], dnbTone: [0, 1, \lin],
 		vocalTexture: [0, 1, \lin], vocalTone: [0, 1, \lin], noiseType: [0, 3, \lin],
 		auxInEnable: [0, 1, \lin], auxInLevel: [0, 0.9, \lin], auxInBlend: [0, 1, \lin]
