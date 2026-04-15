@@ -40,6 +40,7 @@ s.waitForBoot {
 		chaosDepth=0.12, safeMode=1, mixMode=0, textureDuck=0.6, weightEvolve=0,
 		noteDensity=0.9, calmness=0.5, auxInEnable=0, auxInLevel=0.0, auxInBlend=0.0,
 		autoGainProtect=1, loudnessTarget=0.26, dreamMode=1, dreamDepth=0.35,
+		bellLevel=0.12,
 		ambientFreeRun=1, ambientRateHz=0.11
 	|
 		var bpmS, mood, roomBase, dLvl, nLvl, nzLvl, texLvl, mVol, tr, rtHz;
@@ -48,6 +49,8 @@ s.waitForBoot {
 		var scaleCosmic, scaleWonder, scaleHopeful, scaleKoto, scaleRaga, scalePelog, scaleSafir16;
 		var root, octave, fifth, droneCore, droneLfoL, droneLfoR, droneStereo;
 		var detuneA, detuneB, noteHz, noteEnv, noteSig, textureSig, noiseSig, chaosRateJitter, chaosPitchDrift;
+		var bellLvl, bellTrig, bellExciter, bellEnv, bellSig;
+		var bellRatios, bellFreqJitter, bellFreqs, bellAmps, bellDecays;
 		var notesEnergy, textureDuckCtrl, textureDucker;
 		var lfoMul, rndMul, chaosMul, cutoff, roomMulRnd, roomCtrl, moodRateMul, moodCutMul;
 		var textureCap, noiseCap, notesCap, droneCap, safeMix, safeCtrl, chaosDepthSm, mixModeSm, notesSoloMix;
@@ -96,6 +99,7 @@ s.waitForBoot {
 		loudTarget = Lag.kr(loudnessTarget.clip(0.12, 0.45), 0.8);
 		dreamOn = Lag.kr(dreamMode.clip(0, 1), 0.8);
 		dreamAmt = Lag.kr(dreamDepth.clip(0, 1), 1.0);
+		bellLvl = Lag.kr(bellLevel.clip(0, 0.45), 1.0);
 		asyncA = SinOsc.kr(0.07).range(0.9, 1.1); // ~14s cycle
 		asyncB = SinOsc.kr(0.13).range(0.92, 1.08); // ~7.7s cycle
 		asyncC = LFDNoise1.kr(1/15).range(0.94, 1.06);
@@ -202,6 +206,21 @@ s.waitForBoot {
 		noiseCap = Lag.kr(SelectX.kr(safeMix, [0.2, 0.12]), 0.2);
 		noiseSig = noiseSig.clip2(noiseCap);
 
+		// Etherische Bell-Schicht via modaler Resonanz (Klank).
+		bellTrig = CoinGate.kr((densityCtrl * 0.42).clip(0.08, 0.55), trig);
+		bellEnv = EnvGen.kr(Env.perc(0.0008, 0.005, 1, curve: -6), gate: bellTrig);
+		bellExciter = PinkNoise.ar(bellEnv);
+		bellRatios = [1.0, 2.71, 4.07, 5.43, 6.79, 8.21, 9.63, 11.07];
+		bellFreqJitter = TExpRand.kr(0.97, 1.03, bellTrig);
+		bellFreqs = (rtHz * 2.0 * bellRatios * bellFreqJitter).clip(220, 9200);
+		bellAmps = [1.0, 0.82, 0.68, 0.53, 0.42, 0.31, 0.24, 0.18].normalizeSum;
+		bellDecays = [2.2, 3.4, 4.6, 5.8, 7.2, 8.4, 9.6, 10.8] * LinLin.kr(dreamAmt, 0, 1, 0.8, 1.45);
+		bellSig = Klank.ar(`[bellFreqs, bellAmps, bellDecays], bellExciter);
+		bellSig = HPF.ar(bellSig, 220);
+		bellSig = LPF.ar(bellSig, cutoff.clip(1200, 9800));
+		bellSig = Pan2.ar(bellSig, TRand.kr(-0.55, 0.55, bellTrig)) * bellLvl * nGate * mGate;
+		bellSig = bellSig.clip2(0.22);
+
 		droneCap = Lag.kr(SelectX.kr(safeMix, [0.7, 0.55]), 0.2);
 		droneStereo = HPF.ar(droneStereo.clip2(droneCap), 160);
 
@@ -215,9 +234,9 @@ s.waitForBoot {
 		auxSig = auxSig.clip2(0.45);
 
 		// Summenbus + Filter + Reverb-Proxy
-		notesSoloMix = noteSig + (noiseSig * 0.12);
-		dryL = droneStereo[0] + noteSig[0] + textureSig[0] + noiseSig[0] + (chLvl * 0.02) + (pdLvl * 0.01);
-		dryR = droneStereo[1] + noteSig[1] + textureSig[1] + noiseSig[1] + (chLvl * 0.02) + (pdLvl * 0.01);
+		notesSoloMix = noteSig + bellSig + (noiseSig * 0.12);
+		dryL = droneStereo[0] + noteSig[0] + bellSig[0] + textureSig[0] + noiseSig[0] + (chLvl * 0.02) + (pdLvl * 0.01);
+		dryR = droneStereo[1] + noteSig[1] + bellSig[1] + textureSig[1] + noiseSig[1] + (chLvl * 0.02) + (pdLvl * 0.01);
 		dryL = dryL + (auxSig[0] * auxBlend);
 		dryR = dryR + (auxSig[1] * auxBlend);
 		dryL = SelectX.ar(mixModeSm, [dryL, notesSoloMix[0]]);
@@ -358,7 +377,7 @@ s.waitForBoot {
 	~defaultState = [
 		\safeMode, 1, \mixMode, 0, \chaosDepth, 0.12, \textureDuck, 0.6, \weightEvolve, 0.18, \noteDensity, 0.9, \calmness, 0.62,
 		\auxInEnable, 0, \auxInLevel, 0.0, \auxInBlend, 0.0,
-		\autoGainProtect, 1, \loudnessTarget, 0.26, \dreamMode, 1, \dreamDepth, 0.35, \ambientFreeRun, 1, \ambientRateHz, 0.11,
+		\autoGainProtect, 1, \loudnessTarget, 0.26, \dreamMode, 1, \dreamDepth, 0.35, \bellLevel, 0.12, \ambientFreeRun, 1, \ambientRateHz, 0.11,
 		\dnbVol, 0.0, \dnbChaos, 0.3, \dnbRoll, 0.0, \dnbStutter, 0.08, \dnbBreakHPF, 90, \dnbKickAmp, 0.45, \dnbSidechainDepth, 0.18,
 		\dnbRateOffset, 1.0, \dnbRev, 0.12, \dnbTargetBpm, 170, \dnbSourceBpm, 170, \dnbEnergy, 0.35, \dnbTone, 0.45,
 		\vocalTexture, 0.45, \vocalTone, 0.45, \noiseType, 1,
@@ -471,9 +490,9 @@ s.waitForBoot {
 	~shiftko = Synth(\shiftkoAmbientMath);
 	~applyParams.(~defaultState, false);
 	~scenePresets = (
-		safe: [\safeMode, 1, \mixMode, 0, \chaosDepth, 0.10, \textureDuck, 0.72, \weightEvolve, 0.10, \noteDensity, 0.82, \calmness, 0.78, \auxInEnable, 0, \auxInLevel, 0.0, \auxInBlend, 0.0, \autoGainProtect, 1, \loudnessTarget, 0.24, \dnbVol, 0.0, \dnbChaos, 0.25, \dnbRoll, 0.0, \dnbStutter, 0.06, \dnbBreakHPF, 120, \dnbKickAmp, 0.32, \dnbSidechainDepth, 0.14, \dnbRateOffset, 1.0, \dnbRev, 0.1, \textureLevel, 0.035, \noiseLevel, 0.03, \notesLevel, 0.52, \droneLevel, 0.55],
-		focus: [\safeMode, 1, \mixMode, 0, \chaosDepth, 0.14, \textureDuck, 0.8, \weightEvolve, 0.08, \noteDensity, 0.95, \calmness, 0.7, \auxInEnable, 0, \auxInLevel, 0.0, \auxInBlend, 0.0, \autoGainProtect, 1, \loudnessTarget, 0.26, \dnbVol, 0.0, \dnbChaos, 0.35, \dnbRoll, 0.15, \dnbStutter, 0.10, \dnbBreakHPF, 90, \dnbKickAmp, 0.45, \dnbSidechainDepth, 0.18, \dnbRateOffset, 1.0, \dnbRev, 0.18, \textureLevel, 0.03, \noiseLevel, 0.025, \notesLevel, 0.62, \droneLevel, 0.5, \cosmicW, 30, \wonderW, 40, \hopefulW, 30, \kotoW, 0, \ragaW, 0, \pelogW, 0, \safir16W, 0],
-		wild: [\safeMode, 0, \mixMode, 0, \chaosDepth, 0.24, \textureDuck, 0.45, \weightEvolve, 0.45, \noteDensity, 0.98, \calmness, 0.22, \auxInEnable, 0, \auxInLevel, 0.0, \auxInBlend, 0.0, \autoGainProtect, 1, \loudnessTarget, 0.3, \dnbVol, 0.0, \dnbChaos, 0.5, \dnbRoll, 0.25, \dnbStutter, 0.18, \dnbBreakHPF, 70, \dnbKickAmp, 0.6, \dnbSidechainDepth, 0.26, \dnbRateOffset, 1.05, \dnbRev, 0.22, \textureLevel, 0.08, \noiseLevel, 0.06, \notesLevel, 0.6, \droneLevel, 0.62]
+		safe: [\safeMode, 1, \mixMode, 0, \chaosDepth, 0.10, \textureDuck, 0.72, \weightEvolve, 0.10, \noteDensity, 0.82, \calmness, 0.78, \auxInEnable, 0, \auxInLevel, 0.0, \auxInBlend, 0.0, \autoGainProtect, 1, \loudnessTarget, 0.24, \dnbVol, 0.0, \dnbChaos, 0.25, \dnbRoll, 0.0, \dnbStutter, 0.06, \dnbBreakHPF, 120, \dnbKickAmp, 0.32, \dnbSidechainDepth, 0.14, \dnbRateOffset, 1.0, \dnbRev, 0.1, \textureLevel, 0.035, \noiseLevel, 0.03, \notesLevel, 0.52, \droneLevel, 0.55, \bellLevel, 0.08],
+		focus: [\safeMode, 1, \mixMode, 0, \chaosDepth, 0.14, \textureDuck, 0.8, \weightEvolve, 0.08, \noteDensity, 0.95, \calmness, 0.7, \auxInEnable, 0, \auxInLevel, 0.0, \auxInBlend, 0.0, \autoGainProtect, 1, \loudnessTarget, 0.26, \dnbVol, 0.0, \dnbChaos, 0.35, \dnbRoll, 0.15, \dnbStutter, 0.10, \dnbBreakHPF, 90, \dnbKickAmp, 0.45, \dnbSidechainDepth, 0.18, \dnbRateOffset, 1.0, \dnbRev, 0.18, \textureLevel, 0.03, \noiseLevel, 0.025, \notesLevel, 0.62, \droneLevel, 0.5, \bellLevel, 0.12, \cosmicW, 30, \wonderW, 40, \hopefulW, 30, \kotoW, 0, \ragaW, 0, \pelogW, 0, \safir16W, 0],
+		wild: [\safeMode, 0, \mixMode, 0, \chaosDepth, 0.24, \textureDuck, 0.45, \weightEvolve, 0.45, \noteDensity, 0.98, \calmness, 0.22, \auxInEnable, 0, \auxInLevel, 0.0, \auxInBlend, 0.0, \autoGainProtect, 1, \loudnessTarget, 0.3, \dnbVol, 0.0, \dnbChaos, 0.5, \dnbRoll, 0.25, \dnbStutter, 0.18, \dnbBreakHPF, 70, \dnbKickAmp, 0.6, \dnbSidechainDepth, 0.26, \dnbRateOffset, 1.05, \dnbRev, 0.22, \textureLevel, 0.08, \noiseLevel, 0.06, \notesLevel, 0.6, \droneLevel, 0.62, \bellLevel, 0.2]
 	);
 	~sceneMorph = 0.0;
 	~pairsToDict = { |arr|
@@ -485,7 +504,7 @@ s.waitForBoot {
 		\safeMode, \mixMode, \chaosDepth, \textureDuck, \weightEvolve, \noteDensity, \calmness, \autoGainProtect, \loudnessTarget,
 		\dnbVol, \dnbChaos, \dnbRoll, \dnbStutter, \dnbBreakHPF, \dnbKickAmp, \dnbSidechainDepth, \dnbRateOffset, \dnbRev, \dnbTargetBpm, \dnbSourceBpm,
 		\auxInEnable, \auxInLevel, \auxInBlend,
-		\textureLevel, \noiseLevel, \notesLevel, \droneLevel,
+		\textureLevel, \noiseLevel, \notesLevel, \droneLevel, \bellLevel,
 		\cosmicW, \wonderW, \hopefulW, \kotoW, \ragaW, \pelogW, \safir16W
 	];
 	~applySceneMorph = { |morph=0.0|
@@ -531,7 +550,7 @@ s.waitForBoot {
 		droneLevel: [0.001, 0.8, \lin], notesLevel: [0.001, 0.8, \lin], noiseLevel: [0, 0.2, \lin], textureLevel: [0, 0.16, \lin],
 		chaosDepth: [0, 0.4, \lin], textureDuck: [0, 1, \lin], weightEvolve: [0, 1, \lin], noteDensity: [0.2, 1, \lin], calmness: [0, 1, \lin],
 		autoGainProtect: [0, 1, \lin], loudnessTarget: [0.12, 0.45, \lin], ambientFreeRun: [0, 1, \lin], ambientRateHz: [0.01, 1.0, \lin],
-		dreamMode: [0, 1, \lin], dreamDepth: [0, 1, \lin],
+		dreamMode: [0, 1, \lin], dreamDepth: [0, 1, \lin], bellLevel: [0, 0.45, \lin],
 		dnbVol: [0, 1, \lin], dnbChaos: [0, 1, \lin], dnbRoll: [0, 1, \lin], dnbStutter: [0, 0.35, \lin], dnbBreakHPF: [30, 1200, \exp], dnbKickAmp: [0, 1, \lin], dnbSidechainDepth: [0, 0.6, \lin], dnbRateOffset: [0.25, 2.0, \lin], dnbRev: [0, 1, \lin], dnbTargetBpm: [80, 220, \lin], dnbSourceBpm: [60, 220, \lin], dnbEnergy: [0, 1, \lin], dnbTone: [0, 1, \lin],
 		vocalTexture: [0, 1, \lin], vocalTone: [0, 1, \lin], noiseType: [0, 3, \lin],
 		auxInEnable: [0, 1, \lin], auxInLevel: [0, 0.9, \lin], auxInBlend: [0, 1, \lin]
