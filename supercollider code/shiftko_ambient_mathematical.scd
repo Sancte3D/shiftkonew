@@ -397,6 +397,7 @@ s.waitForBoot {
 		\safeMode, 1, \mixMode, 0, \chaosDepth, 0.12, \textureDuck, 0.6, \weightEvolve, 0.18, \noteDensity, 0.9, \calmness, 0.62,
 		\auxInEnable, 0, \auxInLevel, 0.0, \auxInBlend, 0.0,
 		\autoGainProtect, 1, \loudnessTarget, 0.26, \dreamMode, 1, \dreamDepth, 0.35, \shimmerFb, 0.52, \bellLevel, 0.12, \ambientFreeRun, 1, \ambientRateHz, 0.11,
+		\subLevel, 0.14, \subDuckDepth, 0.28, \subGlide, 2.4, \subSat, 0.2,
 		\dnbVol, 0.0, \dnbChaos, 0.3, \dnbRoll, 0.0, \dnbStutter, 0.08, \dnbBreakHPF, 90, \dnbKickAmp, 0.45, \dnbSidechainDepth, 0.18,
 		\dnbRateOffset, 1.0, \dnbRev, 0.12, \dnbTargetBpm, 170, \dnbSourceBpm, 170, \dnbEnergy, 0.35, \dnbTone, 0.45,
 		\vocalTexture, 0.45, \vocalTone, 0.45, \noiseType, 1,
@@ -422,6 +423,9 @@ s.waitForBoot {
 					} {
 						if(~setDnbParam.notNil and: { [\dnbVol, \dnbChaos, \dnbRoll, \dnbStutter, \dnbBreakHPF, \dnbKickAmp, \dnbSidechainDepth, \dnbRateOffset, \dnbRev, \dnbTargetBpm, \dnbSourceBpm].includes(param) }) {
 							~setDnbParam.(param, v);
+						};
+						if(~setSubParam.notNil and: { [\subLevel, \subDuckDepth, \subGlide, \subSat, \masterVol, \rootHz, \transport].includes(param) }) {
+							~setSubParam.(param, v);
 						};
 						~paramState[param] = v;
 						if(~shiftko.notNil) { ~shiftko.set(param, v); };
@@ -460,6 +464,7 @@ s.waitForBoot {
 		if((~paramState[\masterVol] ? 0.0) < 0.12) { ~setParam.(\masterVol, 0.24, true); };
 		if((~paramState[\droneLevel] ? 0.0) < 0.03) { ~setParam.(\droneLevel, 0.55, true); };
 		if((~paramState[\notesLevel] ? 0.0) < 0.03) { ~setParam.(\notesLevel, 0.48, true); };
+		if((~paramState[\subLevel] ? 0.0) < 0.04) { ~setParam.(\subLevel, 0.12, true); };
 		if((~paramState[\dnbVol] ? 0.0) < 0.05) { ~setParam.(\dnbVol, 0.28, true); };
 		~setParam.(\dreamMode, 1, true);
 		if((~paramState[\dreamDepth] ? 0.0) < 0.1) { ~setParam.(\dreamDepth, 0.35, true); };
@@ -509,9 +514,9 @@ s.waitForBoot {
 	~shiftko = Synth(\shiftkoAmbientMath);
 	~applyParams.(~defaultState, false);
 	~scenePresets = (
-		safe: [\safeMode, 1, \mixMode, 0, \chaosDepth, 0.10, \textureDuck, 0.72, \weightEvolve, 0.10, \noteDensity, 0.82, \calmness, 0.78, \auxInEnable, 0, \auxInLevel, 0.0, \auxInBlend, 0.0, \autoGainProtect, 1, \loudnessTarget, 0.24, \dnbVol, 0.0, \dnbChaos, 0.25, \dnbRoll, 0.0, \dnbStutter, 0.06, \dnbBreakHPF, 120, \dnbKickAmp, 0.32, \dnbSidechainDepth, 0.14, \dnbRateOffset, 1.0, \dnbRev, 0.1, \textureLevel, 0.035, \noiseLevel, 0.03, \notesLevel, 0.52, \droneLevel, 0.55, \bellLevel, 0.08],
-		focus: [\safeMode, 1, \mixMode, 0, \chaosDepth, 0.14, \textureDuck, 0.8, \weightEvolve, 0.08, \noteDensity, 0.95, \calmness, 0.7, \auxInEnable, 0, \auxInLevel, 0.0, \auxInBlend, 0.0, \autoGainProtect, 1, \loudnessTarget, 0.26, \dnbVol, 0.0, \dnbChaos, 0.35, \dnbRoll, 0.15, \dnbStutter, 0.10, \dnbBreakHPF, 90, \dnbKickAmp, 0.45, \dnbSidechainDepth, 0.18, \dnbRateOffset, 1.0, \dnbRev, 0.18, \textureLevel, 0.03, \noiseLevel, 0.025, \notesLevel, 0.62, \droneLevel, 0.5, \bellLevel, 0.12, \cosmicW, 30, \wonderW, 40, \hopefulW, 30, \kotoW, 0, \ragaW, 0, \pelogW, 0, \safir16W, 0],
-		wild: [\safeMode, 0, \mixMode, 0, \chaosDepth, 0.24, \textureDuck, 0.45, \weightEvolve, 0.45, \noteDensity, 0.98, \calmness, 0.22, \auxInEnable, 0, \auxInLevel, 0.0, \auxInBlend, 0.0, \autoGainProtect, 1, \loudnessTarget, 0.3, \dnbVol, 0.0, \dnbChaos, 0.5, \dnbRoll, 0.25, \dnbStutter, 0.18, \dnbBreakHPF, 70, \dnbKickAmp, 0.6, \dnbSidechainDepth, 0.26, \dnbRateOffset, 1.05, \dnbRev, 0.22, \textureLevel, 0.08, \noiseLevel, 0.06, \notesLevel, 0.6, \droneLevel, 0.62, \bellLevel, 0.2]
+		safe: [\safeMode, 1, \mixMode, 0, \chaosDepth, 0.10, \textureDuck, 0.72, \weightEvolve, 0.10, \noteDensity, 0.82, \calmness, 0.78, \auxInEnable, 0, \auxInLevel, 0.0, \auxInBlend, 0.0, \autoGainProtect, 1, \loudnessTarget, 0.24, \dnbVol, 0.0, \dnbChaos, 0.25, \dnbRoll, 0.0, \dnbStutter, 0.06, \dnbBreakHPF, 120, \dnbKickAmp, 0.32, \dnbSidechainDepth, 0.14, \dnbRateOffset, 1.0, \dnbRev, 0.1, \textureLevel, 0.035, \noiseLevel, 0.03, \notesLevel, 0.52, \droneLevel, 0.55, \bellLevel, 0.08, \subLevel, 0.12, \subDuckDepth, 0.22],
+		focus: [\safeMode, 1, \mixMode, 0, \chaosDepth, 0.14, \textureDuck, 0.8, \weightEvolve, 0.08, \noteDensity, 0.95, \calmness, 0.7, \auxInEnable, 0, \auxInLevel, 0.0, \auxInBlend, 0.0, \autoGainProtect, 1, \loudnessTarget, 0.26, \dnbVol, 0.0, \dnbChaos, 0.35, \dnbRoll, 0.15, \dnbStutter, 0.10, \dnbBreakHPF, 90, \dnbKickAmp, 0.45, \dnbSidechainDepth, 0.18, \dnbRateOffset, 1.0, \dnbRev, 0.18, \textureLevel, 0.03, \noiseLevel, 0.025, \notesLevel, 0.62, \droneLevel, 0.5, \bellLevel, 0.12, \subLevel, 0.14, \subDuckDepth, 0.28, \cosmicW, 30, \wonderW, 40, \hopefulW, 30, \kotoW, 0, \ragaW, 0, \pelogW, 0, \safir16W, 0],
+		wild: [\safeMode, 0, \mixMode, 0, \chaosDepth, 0.24, \textureDuck, 0.45, \weightEvolve, 0.45, \noteDensity, 0.98, \calmness, 0.22, \auxInEnable, 0, \auxInLevel, 0.0, \auxInBlend, 0.0, \autoGainProtect, 1, \loudnessTarget, 0.3, \dnbVol, 0.0, \dnbChaos, 0.5, \dnbRoll, 0.25, \dnbStutter, 0.18, \dnbBreakHPF, 70, \dnbKickAmp, 0.6, \dnbSidechainDepth, 0.26, \dnbRateOffset, 1.05, \dnbRev, 0.22, \textureLevel, 0.08, \noiseLevel, 0.06, \notesLevel, 0.6, \droneLevel, 0.62, \bellLevel, 0.2, \subLevel, 0.16, \subDuckDepth, 0.35]
 	);
 	~sceneMorph = 0.0;
 	~pairsToDict = { |arr|
@@ -523,7 +528,7 @@ s.waitForBoot {
 		\safeMode, \mixMode, \chaosDepth, \textureDuck, \weightEvolve, \noteDensity, \calmness, \autoGainProtect, \loudnessTarget,
 		\dnbVol, \dnbChaos, \dnbRoll, \dnbStutter, \dnbBreakHPF, \dnbKickAmp, \dnbSidechainDepth, \dnbRateOffset, \dnbRev, \dnbTargetBpm, \dnbSourceBpm,
 		\auxInEnable, \auxInLevel, \auxInBlend,
-		\textureLevel, \noiseLevel, \notesLevel, \droneLevel, \bellLevel,
+		\textureLevel, \noiseLevel, \notesLevel, \droneLevel, \bellLevel, \subLevel, \subDuckDepth,
 		\cosmicW, \wonderW, \hopefulW, \kotoW, \ragaW, \pelogW, \safir16W
 	];
 	~applySceneMorph = { |morph=0.0|
@@ -569,7 +574,7 @@ s.waitForBoot {
 		droneLevel: [0.001, 0.8, \lin], notesLevel: [0.001, 0.8, \lin], noiseLevel: [0, 0.2, \lin], textureLevel: [0, 0.16, \lin],
 		chaosDepth: [0, 0.4, \lin], textureDuck: [0, 1, \lin], weightEvolve: [0, 1, \lin], noteDensity: [0.2, 1, \lin], calmness: [0, 1, \lin],
 		autoGainProtect: [0, 1, \lin], loudnessTarget: [0.12, 0.45, \lin], ambientFreeRun: [0, 1, \lin], ambientRateHz: [0.01, 1.0, \lin],
-		dreamMode: [0, 1, \lin], dreamDepth: [0, 1, \lin], shimmerFb: [0, 0.95, \lin], bellLevel: [0, 0.45, \lin],
+		dreamMode: [0, 1, \lin], dreamDepth: [0, 1, \lin], shimmerFb: [0, 0.95, \lin], bellLevel: [0, 0.45, \lin], subLevel: [0, 0.35, \lin], subDuckDepth: [0, 0.8, \lin], subGlide: [0.08, 6.0, \lin], subSat: [0, 0.6, \lin],
 		dnbVol: [0, 1, \lin], dnbChaos: [0, 1, \lin], dnbRoll: [0, 1, \lin], dnbStutter: [0, 0.35, \lin], dnbBreakHPF: [30, 1200, \exp], dnbKickAmp: [0, 1, \lin], dnbSidechainDepth: [0, 0.6, \lin], dnbRateOffset: [0.25, 2.0, \lin], dnbRev: [0, 1, \lin], dnbTargetBpm: [80, 220, \lin], dnbSourceBpm: [60, 220, \lin], dnbEnergy: [0, 1, \lin], dnbTone: [0, 1, \lin],
 		vocalTexture: [0, 1, \lin], vocalTone: [0, 1, \lin], noiseType: [0, 3, \lin],
 		auxInEnable: [0, 1, \lin], auxInLevel: [0, 0.9, \lin], auxInBlend: [0, 1, \lin]
@@ -718,8 +723,51 @@ s.waitForBoot {
 		step: 0,
 		slicesTotal: 16,
 		player: nil,
-		clock: TempoClock.new(170/60)
+		clock: TempoClock.new(170/60),
+		kickTrigBus: Bus.control(s, 1)
 	);
+	~sub = (synth: nil, level: 0.14, duckDepth: 0.28, glide: 2.4, sat: 0.2);
+	~setSubParam = { |param, value|
+		case
+		{ param == \subLevel } { ~sub[\level] = value.clip(0, 0.35) }
+		{ param == \subDuckDepth } { ~sub[\duckDepth] = value.clip(0, 0.8) }
+		{ param == \subGlide } { ~sub[\glide] = value.clip(0.08, 6.0) }
+		{ param == \subSat } { ~sub[\sat] = value.clip(0, 0.6) };
+		if(~sub[\synth].notNil) {
+			~sub[\synth].set(
+				\rootHz, (~paramState[\rootHz] ? 256).clip(64, 768),
+				\master, (~paramState[\masterVol] ? 0.24).clip(0.001, 0.55),
+				\gate, (~paramState[\transport] ? 1).clip(0, 1),
+				\level, ~sub[\level] ? 0.14,
+				\duckDepth, ~sub[\duckDepth] ? 0.28,
+				\glide, ~sub[\glide] ? 2.4,
+				\sat, ~sub[\sat] ? 0.2
+			);
+		};
+	};
+	~startSub = {
+		~stopSub.value;
+		~sub[\synth] = Synth(\ambientSubBass, [
+			\out, ~mainOutBus ? 0,
+			\duckBus, (~dnb[\kickTrigBus] ? Bus.control(s, 1)).index,
+			\rootHz, (~paramState[\rootHz] ? 256).clip(64, 768),
+			\master, (~paramState[\masterVol] ? 0.24).clip(0.001, 0.55),
+			\gate, (~paramState[\transport] ? 1).clip(0, 1),
+			\level, ~sub[\level] ? 0.14,
+			\duckDepth, ~sub[\duckDepth] ? 0.28,
+			\glide, ~sub[\glide] ? 2.4,
+			\sat, ~sub[\sat] ? 0.2
+		]);
+		"Sub bass started.".postln;
+	};
+	~stopSub = {
+		if(~sub[\synth].notNil) { ~sub[\synth].free; ~sub[\synth] = nil; };
+		"Sub bass stopped.".postln;
+	};
+	~setSubParam.(\subLevel, ~paramState[\subLevel] ? 0.14);
+	~setSubParam.(\subDuckDepth, ~paramState[\subDuckDepth] ? 0.28);
+	~setSubParam.(\subGlide, ~paramState[\subGlide] ? 2.4);
+	~setSubParam.(\subSat, ~paramState[\subSat] ? 0.2);
 	SynthDef(\dnbSlicePlayer, { |out=0, buf=0, slice=0, slicesTotal=16, amp=0.4, rate=1.0, pan=0, revMix=0.15, cutoff=15000, hpf=90|
 		var sig, env, sliceFrames, startPos, dry, wet, cutoffSm, hpfSm;
 		sliceFrames = BufFrames.kr(buf) / slicesTotal.max(1);
@@ -738,8 +786,8 @@ s.waitForBoot {
 		wet = FreeVerb2.ar(dry[0], dry[1], mix: 0.35, room: 0.86, damp: 0.45);
 		Out.ar(out, SelectX.ar(revMix.clip(0, 1), [dry, wet]) * amp);
 	}).add;
-	SynthDef(\dnbKick, { |out=0, amp=0.55, pan=0, revMix=0.03|
-		var env, pitchEnv, body, click, sig, dry, wet;
+	SynthDef(\dnbKick, { |out=0, amp=0.55, pan=0, revMix=0.03, trigOut=(-1)|
+		var env, pitchEnv, body, click, sig, dry, wet, trigSig;
 		env = EnvGen.kr(Env.perc(0.0008, 0.22, curve: -8), doneAction: 2);
 		pitchEnv = XLine.kr(190, 44, 0.045);
 		body = SinOsc.ar(pitchEnv, 0, env);
@@ -747,7 +795,26 @@ s.waitForBoot {
 		sig = (body + click).tanh;
 		dry = Pan2.ar(sig * amp.clip(0, 1.0), pan.clip(-1, 1));
 		wet = FreeVerb2.ar(dry[0], dry[1], mix: 0.25, room: 0.7, damp: 0.45);
+		trigSig = Trig1.kr((amp > 0.001), 0.08);
+		Out.kr(trigOut, trigSig);
 		Out.ar(out, SelectX.ar(revMix.clip(0, 0.4), [dry, wet]));
+	}).add;
+	SynthDef(\ambientSubBass, { |out=0, rootHz=256, level=0.14, master=0.24, gate=1, glide=2.4, sat=0.2, hpf=26, duckDepth=0.28, duckBus=0|
+		var subHz, subHzSm, duckTrig, duckEnv, duckGain, drift, sub, sig, env;
+		subHz = (rootHz.clip(64, 768) / 4).clip(28, 120);
+		subHzSm = Lag.kr(subHz, glide.clip(0.08, 6.0));
+		duckTrig = In.kr(duckBus, 1).clip(0, 1);
+		duckEnv = LagUD.kr(duckTrig, 0.002, 0.2);
+		duckGain = (1 - (duckEnv * duckDepth.clip(0, 0.8))).clip(0.16, 1.0);
+		drift = SinOsc.kr(0.035).range(0.997, 1.003);
+		sub = SinOsc.ar(subHzSm * drift);
+		sub = sub + (SinOsc.ar(subHzSm * 2, 0, 0.12));
+		sig = tanh(sub * (1 + sat.clip(0, 0.6)));
+		sig = LPF.ar(sig, 220);
+		sig = HPF.ar(sig, hpf.clip(18, 90));
+		env = Lag.kr(gate.clip(0, 1), 0.25);
+		sig = (sig * level.clip(0, 0.35) * master.clip(0.001, 0.55) * duckGain * env) ! 2;
+		Out.ar(out, sig.clip2(0.35));
 	}).add;
 	SynthDef(\ambientPulse, { |out=0, freq=440, amp=0.08, pan=0, rel=1.2, bright=4200, rate=1.0|
 		var env, exciter, tone, sig, cutoff;
@@ -933,6 +1000,7 @@ SynthDef(\vocalGranCloud, { |out=0, buf=0, gate=1, amp=0.2, rate=1.0, pos=0.5, p
 		Pbind(
 			\instrument, \dnbKick,
 			\dur, 0.25,
+			\trigOut, Pfunc { (~dnb[\kickTrigBus] ? Bus.control(s, 1)).index },
 			\isKick, Pseq([1, 0, 0, 0, 1, 0, 0, 0], inf),
 			\amp, Pif(
 				Pkey(\isKick) > 0,
@@ -1763,11 +1831,13 @@ SynthDef(\vocalGranCloud, { |out=0, buf=0, gate=1, amp=0.2, rate=1.0, pos=0.5, p
 		~midiDebug = false;
 		~midiFeedback = false;
 		~stopOledTask.value;
+		~startSub.value;
 		~startAmbientRhythm.value;
 
 		win.onClose_({
 			~stopDnb.value;
 			~stopVocalGranular.value;
+			~stopSub.value;
 			~stopAmbientRhythm.value;
 			~stopOledTask.value;
 			~saveState.value;
