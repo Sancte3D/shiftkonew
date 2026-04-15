@@ -39,3 +39,7 @@ Die dB-Angaben beschreiben **nur** den jeweiligen Multiplikator; kombinierte Abw
 | **else/plate.rev~** (`shiftko-fx.pd`) | Trockensignal vom Summenpunkt nach EQ/Rausch-Mix (**+~** obj. 34) zum **Eingang** von `plate.rev~`; Ausgang weiter auf **+~** (35) als Wet — parallel zur FDN-Kette. |
 | **note-bus** (Chords/Akzent) | Alle `throw~ note-bus` → **`throw~ note-bus-L`**, damit sie im gleichen linken Summen-Bus wie die Melodie (`catch~ note-bus-L`) ankommen. |
 | **noise `switch~`** (`shiftko-noise.pd`) | Entfernt wie bei Texture — Anheben nur noch über `noise-level` / bestehende *~, kein DSP-Hartgate bei kleinem Level. |
+
+## Archive-Hinweis
+
+Die früheren Orphan-Patches `shiftko-pedal.pd` und `shiftko-accent.pd` liegen jetzt unter `archive/` und sind bewusst nicht Teil der Runtime-Instanziierung in `shiftko-main.pd`.
