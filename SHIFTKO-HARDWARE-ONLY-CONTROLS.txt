@@ -28,31 +28,18 @@ Music behavior:
 DnB block (simplified):
 - Toggle: DNB ON/OFF
 - Button: NEXT BREAK
-- Encoder/Fader: DnB Vol
-- Encoder: DnB Chaos
-- Encoder: DnB Roll
-- Encoder: DnB Stutter
-- Encoder: DnB Rate Offset
-- Encoder: DnB Target BPM
-- Encoder: DnB Source BPM
-- Encoder: DnB Break HPF
-- Encoder: DnB Kick Amp
-- Encoder: DnB Sidechain Depth
-- Encoder: DnB Reverb Send
+- Encoder/Fader: DnB Amount
+- Encoder: DnB Energy (macro: chaos + roll + stutter + kick + sidechain)
+- Encoder: DnB Tone (macro: break HPF + reverb color)
+- Encoder: DnB Tempo (target BPM)
 
 Vocal granular block (simplified):
 - Toggle: VOC ON/OFF
 - Button: NEXT VOCAL
-- Encoder: Vocal Amp
-- Encoder: Vocal Position
-- Encoder: Vocal Jitter
-- Encoder: Vocal Grain Duration
-- Encoder: Vocal Density
+- Encoder: Vocal Amount
+- Encoder: Vocal Texture (macro: position + jitter + grain duration + density)
+- Encoder: Vocal Tone (macro: HPF + LPF + reverb)
 - Encoder: Vocal Rate
-- Encoder: Vocal HPF
-- Encoder: Vocal LPF
-- Encoder: Vocal Reverb
-- Encoder: Vocal Pan Width
 
 Session / transport essentials:
 - Button: SAVE SESSION
@@ -96,3 +83,17 @@ If a control does not serve one of these, remove it from hardware:
 - Core groove/texture control (DnB/Vocal)
 
 Everything else stays software-side or developer-only.
+
+=================================
+NOT YET IMPLEMENTED (KEEP UPDATED)
+=================================
+
+Update this section after every implementation step.
+Only list items that are still open.
+
+- Optional deterministic source/FX bus order refactor (Group.head/tail)
+- Monolith/modular parity pass (same defaults and macro behavior in both paths)
+- Optional scene crossfade layer (NodeProxy/Ndef fadeTime workflow)
+- Optional BPM metadata extension for non-drum sample groups (vocals/pads)
+- Hardware-facing controls/docs sync for new sub-bass block (SUB ON/OFF, SUB LEVEL, SUB DUCK)
+- Optional: integrate standalone `shiftko_ambient_ecosystem.scd` (8-layer engine) with main SHIFTKO UI / one session

@@ -39,22 +39,29 @@ s.waitForBoot {
 		ragaW=0, pelogW=0, safir16W=0, filterCutoffBase=1800, wholeTime=4000, macroGate=1, noiseType=0,
 		chaosDepth=0.12, safeMode=1, mixMode=0, textureDuck=0.6, weightEvolve=0,
 		noteDensity=0.9, calmness=0.5, auxInEnable=0, auxInLevel=0.0, auxInBlend=0.0,
-		autoGainProtect=1, loudnessTarget=0.26
+		autoGainProtect=1, loudnessTarget=0.26, dreamMode=1, dreamDepth=0.35,
+		shimmerFb=0.52,
+		bellLevel=0.12,
+		ambientFreeRun=1, ambientRateHz=0.11
 	|
 		var bpmS, mood, roomBase, dLvl, nLvl, nzLvl, texLvl, mVol, tr, rtHz;
 		var dGate, nGate, nzGate, tGate, chLvl, pdLvl, fBase, mGate;
-		var weights, weightNorm, scaleSel, scaleHz, trigRate, trig, noteTrig;
-		var scaleCosmic, scaleWonder, scaleHopeful, scaleKoto, scaleRaga, scalePelog, scaleSafir16;
-		var root, sub, octave, fifth, droneCore, droneLfoL, droneLfoR, droneStereo;
+		var weights, weightNorm, scaleSel, scaleHz, trigRate, trig, noteTrig, baseTrigRate, freeRunSm, ambientRateSm;
+		var scaleCosmic, scaleWonder, scaleHopeful, scaleKoto, scaleRaga, scalePelog, scaleSafir16, scaleSafeMajor;
+		var root, octave, fifth, droneCore, droneLfoL, droneLfoR, droneStereo;
 		var detuneA, detuneB, noteHz, noteEnv, noteSig, textureSig, noiseSig, chaosRateJitter, chaosPitchDrift;
+		var bellLvl, bellTrig, bellExciter, bellEnv, bellSig;
+		var bellRatios, bellFreqJitter, bellFreqs, bellAmps, bellDecays;
 		var notesEnergy, textureDuckCtrl, textureDucker;
-		var lfoMul, rndMul, chaosMul, cutoff, roomMulRnd, roomCtrl;
+		var lfoMul, rndMul, chaosMul, cutoff, roomMulRnd, roomCtrl, moodRateMul, moodCutMul;
 		var textureCap, noiseCap, notesCap, droneCap, safeMix, safeCtrl, chaosDepthSm, mixModeSm, notesSoloMix;
 		var wEvolve, wDrift;
 		var densityCtrl, calmCtrl, effectiveChaos, effectiveTex, effectiveNoise;
 		var dryL, dryR, wetL, wetR, mix, hpSafety;
-		var protectOn, loudTarget, outEnv, gainGuard;
+		var protectOn, loudTarget, outEnv, gainGuard, dreamOn, dreamAmt;
 		var auxGate, auxLvl, auxBlend, auxL, auxR, auxSig;
+		var asyncA, asyncB, asyncC, slewChaos, meander;
+		var shimmerFbSm, shimmerFbSafe, shimmerIn, shimmerSend, shimmerPitched;
 
 		// Alle kritischen Steuerwerte mit Lag.kr glätten (Anti-Zipper/Anti-Klick)
 		bpmS   = Lag.kr(bpm.clip(30, 100), 0.3);
@@ -82,6 +89,8 @@ s.waitForBoot {
 		wEvolve = Lag.kr(weightEvolve.clip(0, 1), 2.5);
 		densityCtrl = Lag.kr(noteDensity.clip(0.2, 1.0), 1.5);
 		calmCtrl = Lag.kr(calmness.clip(0, 1), 2.0);
+		freeRunSm = Lag.kr(ambientFreeRun.clip(0, 1), 0.8);
+		ambientRateSm = Lag.kr(ambientRateHz.clip(0.01, 1.0), 1.2);
 		effectiveChaos = chaosDepthSm * LinLin.kr(calmCtrl, 0, 1, 1.4, 0.45);
 		effectiveTex = LinLin.kr(calmCtrl, 0, 1, 1.15, 0.55);
 		effectiveNoise = LinLin.kr(calmCtrl, 0, 1, 1.2, 0.5);
@@ -90,6 +99,15 @@ s.waitForBoot {
 		auxBlend = Lag.kr(auxInBlend.clip(0, 1), 1.0);
 		protectOn = Lag.kr(autoGainProtect.clip(0, 1), 0.2);
 		loudTarget = Lag.kr(loudnessTarget.clip(0.12, 0.45), 0.8);
+		dreamOn = Lag.kr(dreamMode.clip(0, 1), 0.8);
+		dreamAmt = Lag.kr(dreamDepth.clip(0, 1), 1.0);
+		shimmerFbSm = Lag.kr(shimmerFb.clip(0, 0.95), 0.8);
+		shimmerFbSafe = (shimmerFbSm * dreamOn).clip(0, 0.95);
+		bellLvl = Lag.kr(bellLevel.clip(0, 0.45), 1.0);
+		asyncA = SinOsc.kr(0.07).range(0.9, 1.1); // ~14s cycle
+		asyncB = SinOsc.kr(0.13).range(0.92, 1.08); // ~7.7s cycle
+		asyncC = LFDNoise1.kr(1/15).range(0.94, 1.06);
+		slewChaos = Lag.kr(LFNoise0.kr(0.18).range(0.85, 1.15), 4.5);
 
 		// Gewichtete Skalenwahl (Pd-Gedanke: "Chords_Scales" + Weight-Slider)
 		wDrift = [
@@ -103,17 +121,20 @@ s.waitForBoot {
 		].linlin(-1, 1, 0.65, 1.35);
 		weights = ([cosmicW, wonderW, hopefulW, kotoW, ragaW, pelogW, safir16W] * SelectX.kr(wEvolve, [1 ! 7, wDrift])).max(0.001);
 		weightNorm = weights / (weights.sum + 1e-9);
-		// Skalen als Frequenzverhaeltnisse zur root-Frequenz
-		scaleCosmic  = [1, 9/8, 5/4, 4/3, 3/2, 5/3, 2];
-		scaleWonder  = [1, 16/15, 9/8, 6/5, 4/3, 3/2, 8/5, 2];
-		scaleHopeful = [1, 9/8, 5/4, 45/32, 3/2, 5/3, 15/8, 2];
-		scaleKoto    = [1, 9/8, 4/3, 3/2, 16/9, 2];
-		scaleRaga    = [1, 16/15, 6/5, 4/3, 3/2, 8/5, 9/5, 2];
-		scalePelog   = [1, 1.07, 1.18, 1.32, 1.52, 1.74, 2];
-		scaleSafir16 = [1, 16/15, 9/8, 6/5, 5/4, 4/3, 45/32, 3/2, 8/5, 5/3, 9/5, 15/8, 2];
+		// Pleasant-only harmonic sets to avoid sad/off dissonance in live use.
+		scaleSafeMajor = [1, 9/8, 5/4, 3/2, 5/3, 2];
+		scaleCosmic  = scaleSafeMajor;
+		scaleWonder  = [1, 9/8, 5/4, 45/32, 3/2, 5/3, 15/8, 2];
+		scaleHopeful = [1, 9/8, 5/4, 3/2, 5/3, 15/8, 2];
+		scaleKoto    = scaleSafeMajor;
+		scaleRaga    = scaleSafeMajor;
+		scalePelog   = scaleSafeMajor;
+		scaleSafir16 = scaleSafeMajor;
 
 		chaosRateJitter = LinLin.kr(A2K.kr(LorenzL.ar(0.08)), -1, 1, 0.93, 1.07);
-		trigRate = (((bpmS / 60) / 2) * chaosRateJitter).clip(0.05, 4);
+		moodRateMul = LinLin.kr(mood, 0, 1, 0.78, 1.22);
+		baseTrigRate = SelectX.kr(freeRunSm, [((bpmS / 60) / 2), ambientRateSm]);
+		trigRate = (baseTrigRate * chaosRateJitter * moodRateMul * SelectX.kr(dreamOn, [1, asyncA])).clip(0.02, 4);
 		trig = Impulse.kr(trigRate) * tr * nGate * mGate;
 		noteTrig = CoinGate.kr(densityCtrl, trig);
 		// Wichtig fuer Live-Weights: Skala bei JEDEM Note-Trigger neu nach aktuellen Gewichten waehlen.
@@ -135,19 +156,20 @@ s.waitForBoot {
 				TChoose.kr(noteTrig, scaleSafir16)
 			]
 		) * rtHz;
+		scaleHz = TChoose.kr(noteTrig, scaleSafeMajor) * rtHz;
 
 		// Filter-Multiplikatoren wie in Pd-Mix-Patches (LFO + Random + Chaos)
 		lfoMul = SinOsc.kr(0.001).range(0.4, 2.5);
 		rndMul = LFDNoise1.kr(1/600).range(0.65, 1.35);
 		chaosMul = LFDNoise3.kr(1/17).range(0.72, 1.28);
-		cutoff = (fBase * lfoMul * rndMul * chaosMul).clip(120, 14000);
+		moodCutMul = LinLin.kr(mood, 0, 1, 0.72, 1.28);
+		cutoff = (fBase * lfoMul * rndMul * chaosMul * moodCutMul * SelectX.kr(dreamOn, [1, (asyncC * slewChaos)])).clip(120, 14000);
 
 		// Drone: harmonische Schichtung (sub + root + octave + fifth), leicht stereo-bewegt
-		root = SinOsc.ar(rtHz);
-		sub = SinOsc.ar(rtHz * 0.5) * 0.20;
-		octave = (SinOsc.ar(rtHz * 2) + (Saw.ar(rtHz * 2) * 0.15)) * 0.24;
-		fifth = SinOsc.ar(rtHz * 3) * 0.10;
-		droneCore = (root * 0.44 + sub + octave + fifth) * dLvl * dGate;
+		root = SinOsc.ar(rtHz) * LinLin.kr(mood, 0, 1, 0.52, 0.36);
+		octave = (SinOsc.ar(rtHz * 2) + (Saw.ar(rtHz * 2) * 0.08)) * LinLin.kr(mood, 0, 1, 0.14, 0.2);
+		fifth = SinOsc.ar(rtHz * 1.5) * LinLin.kr(mood, 0, 1, 0.05, 0.1);
+		droneCore = (root + octave + fifth) * dLvl * dGate;
 
 		droneLfoL = SinOsc.kr(0.013).range(0.76, 1.0);
 		droneLfoR = SinOsc.kr(0.017).range(0.76, 1.0);
@@ -157,7 +179,8 @@ s.waitForBoot {
 		detuneA = 1.001;
 		detuneB = 0.999;
 		chaosPitchDrift = LinExp.kr(A2K.kr(LorenzL.ar(0.11)), -1, 1, 1 - (effectiveChaos * 0.03), 1 + (effectiveChaos * 0.03));
-		noteHz = Lag.kr(scaleHz * chaosPitchDrift, 1.2);
+		meander = Lag.kr(LFNoise2.kr(0.06).range(0.997, 1.003), 5.0);
+		noteHz = VarLag.kr(scaleHz * chaosPitchDrift * SelectX.kr(dreamOn, [1, meander]), 2.6, warp: \sine);
 		noteEnv = EnvGen.kr(Env.perc(0.02, 16.0, 0.7, curve: -4), gate: noteTrig);
 		noteSig = (
 			SinOsc.ar(noteHz * detuneA) +
@@ -170,22 +193,42 @@ s.waitForBoot {
 		noteSig = noteSig.clip2(notesCap);
 
 		// Texture + Noise Layer
-		textureSig = HPF.ar(PinkNoise.ar(0.14), 500) * LPF.kr(SinOsc.kr(0.02).range(2800, 7600), 4);
-		textureSig = textureSig ! 2 * texLvl * effectiveTex * tGate * 0.12;
+		textureSig = HPF.ar(PinkNoise.ar(0.08), 700) * LPF.kr(SinOsc.kr(0.02).range(2400, 6800), 4);
+		textureSig = textureSig ! 2 * texLvl * effectiveTex * tGate * 0.05;
 		// Adaptive Ducking: wenn Notes prae gnant sind, geht Texture gezielt zurueck.
 		notesEnergy = Amplitude.kr(Mix.ar(noteSig), 0.05, 0.25).clip(0, 1);
-		textureDucker = (1 - (notesEnergy * textureDuckCtrl * 0.75)).clip(0.35, 1);
+		textureDucker = (1 - (notesEnergy * textureDuckCtrl * 0.82)).clip(0.2, 1);
 		textureSig = textureSig * textureDucker;
-		textureCap = Lag.kr(SelectX.kr(safeMix, [0.28, 0.18]), 0.2);
+		textureCap = Lag.kr(SelectX.kr(safeMix, [0.16, 0.1]), 0.2);
 		textureSig = textureSig.clip2(textureCap);
 
-		noiseSig = SelectX.ar(noiseType.clip(0, 1), [WhiteNoise.ar(1), PinkNoise.ar(1)]);
+		noiseSig = Select.ar(noiseType.round(1).clip(0, 3), [
+			WhiteNoise.ar(1),
+			PinkNoise.ar(1),
+			LPF.ar(BrownNoise.ar(1), 2200),
+			BPF.ar(WhiteNoise.ar(1), 1200, 0.35)
+		]);
 		noiseSig = HPF.ar(noiseSig, 120) ! 2 * nzLvl * effectiveNoise * nzGate * 0.12;
 		noiseCap = Lag.kr(SelectX.kr(safeMix, [0.2, 0.12]), 0.2);
 		noiseSig = noiseSig.clip2(noiseCap);
 
+		// Etherische Bell-Schicht via modaler Resonanz (Klank).
+		bellTrig = CoinGate.kr((densityCtrl * 0.42).clip(0.08, 0.55), trig);
+		bellEnv = EnvGen.kr(Env.perc(0.0008, 0.005, 1, curve: -6), gate: bellTrig);
+		bellExciter = PinkNoise.ar(bellEnv);
+		bellRatios = [1.0, 2.71, 4.07, 5.43, 6.79, 8.21, 9.63, 11.07];
+		bellFreqJitter = TExpRand.kr(0.97, 1.03, bellTrig);
+		bellFreqs = (rtHz * 2.0 * bellRatios * bellFreqJitter).clip(220, 9200);
+		bellAmps = [1.0, 0.82, 0.68, 0.53, 0.42, 0.31, 0.24, 0.18].normalizeSum;
+		bellDecays = [2.2, 3.4, 4.6, 5.8, 7.2, 8.4, 9.6, 10.8] * LinLin.kr(dreamAmt, 0, 1, 0.8, 1.45);
+		bellSig = Klank.ar(`[bellFreqs, bellAmps, bellDecays], bellExciter);
+		bellSig = HPF.ar(bellSig, 220);
+		bellSig = LPF.ar(bellSig, cutoff.clip(1200, 9800));
+		bellSig = Pan2.ar(bellSig, TRand.kr(-0.55, 0.55, bellTrig)) * bellLvl * nGate * mGate;
+		bellSig = bellSig.clip2(0.22);
+
 		droneCap = Lag.kr(SelectX.kr(safeMix, [0.7, 0.55]), 0.2);
-		droneStereo = droneStereo.clip2(droneCap);
+		droneStereo = HPF.ar(droneStereo.clip2(droneCap), 160);
 
 		// Optionaler AUX-In Pfad (nur aktiv wenn Hardware-ADC/Input vorhanden).
 		auxL = SoundIn.ar(0);
@@ -197,33 +240,63 @@ s.waitForBoot {
 		auxSig = auxSig.clip2(0.45);
 
 		// Summenbus + Filter + Reverb-Proxy
-		notesSoloMix = noteSig + (noiseSig * 0.12);
-		dryL = droneStereo[0] + noteSig[0] + textureSig[0] + noiseSig[0] + (chLvl * 0.02) + (pdLvl * 0.01);
-		dryR = droneStereo[1] + noteSig[1] + textureSig[1] + noiseSig[1] + (chLvl * 0.02) + (pdLvl * 0.01);
+		notesSoloMix = noteSig + bellSig + (noiseSig * 0.12);
+		dryL = droneStereo[0] + noteSig[0] + bellSig[0] + textureSig[0] + noiseSig[0] + (chLvl * 0.02) + (pdLvl * 0.01);
+		dryR = droneStereo[1] + noteSig[1] + bellSig[1] + textureSig[1] + noiseSig[1] + (chLvl * 0.02) + (pdLvl * 0.01);
 		dryL = dryL + (auxSig[0] * auxBlend);
 		dryR = dryR + (auxSig[1] * auxBlend);
 		dryL = SelectX.ar(mixModeSm, [dryL, notesSoloMix[0]]);
 		dryR = SelectX.ar(mixModeSm, [dryR, notesSoloMix[1]]);
 		dryL = RLPF.ar(dryL, cutoff, 0.55);
 		dryR = RLPF.ar(dryR, cutoff * 0.99, 0.58);
+		shimmerIn = LocalIn.ar(2);
 
 		roomMulRnd = LFDNoise1.kr(1/600).range(0.75, 1.25);
-		roomCtrl = (roomBase * roomMulRnd).clip(0.02, 0.88);
+		roomCtrl = (roomBase * roomMulRnd * SelectX.kr(dreamOn, [1, asyncB])).clip(0.02, 0.88);
 		// Reverb-Fallback: falls JPverb nicht verfuegbar ist, auf FreeVerb2 zurueckfallen.
 		wetL = SelectX.ar(
 			hasJPverb.if(1, 0),
 			[
-				FreeVerb2.ar(dryL, dryR, mix: roomCtrl.linlin(0.02, 0.88, 0.18, 0.68), room: 0.84, damp: 0.52)[0],
-				JPverb.ar(dryL, t60: roomCtrl.linlin(0.02, 0.88, 0.8, 7.5), damp: 0.45, size: 2.8)
+				FreeVerb2.ar(
+					dryL + (shimmerIn[0] * shimmerFbSafe),
+					dryR + (shimmerIn[1] * shimmerFbSafe),
+					mix: roomCtrl.linlin(0.02, 0.88, 0.18, 0.68),
+					room: 0.84,
+					damp: 0.52
+				)[0],
+				JPverb.ar(
+					dryL + (shimmerIn[0] * shimmerFbSafe),
+					t60: SelectX.kr(dreamOn, [roomCtrl.linlin(0.02, 0.88, 0.8, 7.5), roomCtrl.linlin(0.02, 0.88, 20, 40)]),
+					damp: 0.45,
+					size: 2.8
+				)
 			]
 		);
 		wetR = SelectX.ar(
 			hasJPverb.if(1, 0),
 			[
-				FreeVerb2.ar(dryL, dryR, mix: roomCtrl.linlin(0.02, 0.88, 0.18, 0.68), room: 0.84, damp: 0.52)[1],
-				JPverb.ar(dryR, t60: roomCtrl.linlin(0.02, 0.88, 0.8, 7.5), damp: 0.43, size: 2.9)
+				FreeVerb2.ar(
+					dryL + (shimmerIn[0] * shimmerFbSafe),
+					dryR + (shimmerIn[1] * shimmerFbSafe),
+					mix: roomCtrl.linlin(0.02, 0.88, 0.18, 0.68),
+					room: 0.84,
+					damp: 0.52
+				)[1],
+				JPverb.ar(
+					dryR + (shimmerIn[1] * shimmerFbSafe),
+					t60: SelectX.kr(dreamOn, [roomCtrl.linlin(0.02, 0.88, 0.8, 7.5), roomCtrl.linlin(0.02, 0.88, 20, 40)]),
+					damp: 0.43,
+					size: 2.9
+				)
 			]
 		);
+		shimmerPitched = PitchShift.ar([wetL, wetR], 0.1, 2.0, 0.01, 0.01);
+		shimmerSend = HPF.ar(shimmerPitched * dreamOn * dreamAmt * 0.42, 260).clip2(0.35);
+		LocalOut.ar(shimmerSend);
+		wetL = wetL + shimmerSend[0];
+		wetR = wetR + shimmerSend[1];
+		wetL = HPF.ar(wetL, 180);
+		wetR = HPF.ar(wetR, 180);
 
 		mix = XFade2.ar([dryL, dryR], [wetL, wetR], roomCtrl.linlin(0.02, 0.88, -0.4, 0.7));
 		hpSafety = HPF.ar(mix, 20);
@@ -325,24 +398,45 @@ s.waitForBoot {
 	~defaultState = [
 		\safeMode, 1, \mixMode, 0, \chaosDepth, 0.12, \textureDuck, 0.6, \weightEvolve, 0.18, \noteDensity, 0.9, \calmness, 0.62,
 		\auxInEnable, 0, \auxInLevel, 0.0, \auxInBlend, 0.0,
-		\autoGainProtect, 1, \loudnessTarget, 0.26,
+		\autoGainProtect, 1, \loudnessTarget, 0.26, \dreamMode, 1, \dreamDepth, 0.35, \shimmerFb, 0.52, \bellLevel, 0.12, \ambientFreeRun, 1, \ambientRateHz, 0.11,
+		\subLevel, 0.14, \subDuckDepth, 0.28, \subGlide, 2.4, \subSat, 0.2,
 		\dnbVol, 0.0, \dnbChaos, 0.3, \dnbRoll, 0.0, \dnbStutter, 0.08, \dnbBreakHPF, 90, \dnbKickAmp, 0.45, \dnbSidechainDepth, 0.18,
-		\dnbRateOffset, 1.0, \dnbRev, 0.12, \dnbTargetBpm, 170, \dnbSourceBpm, 135,
+		\dnbRateOffset, 1.0, \dnbRev, 0.12, \dnbTargetBpm, 170, \dnbSourceBpm, 170, \dnbEnergy, 0.35, \dnbTone, 0.45,
+		\vocalTexture, 0.45, \vocalTone, 0.45, \noiseType, 1,
 		\textureLevel, 0.035, \noiseLevel, 0.03, \notesLevel, 0.55, \droneLevel, 0.56,
-		\cosmicW, 70, \wonderW, 20, \hopefulW, 10, \kotoW, 0, \ragaW, 0, \pelogW, 0, \safir16W, 0
+		\cosmicW, 30, \wonderW, 40, \hopefulW, 30, \kotoW, 0, \ragaW, 0, \pelogW, 0, \safir16W, 0
 	];
 	~setParam = { |param, value, syncUI=true|
 		var v = value;
 		if(~performanceSafeLock and: { ~performanceSafeCaps[param].notNil }) {
 			v = v.min(~performanceSafeCaps[param]);
 		};
-		if(~setDnbParam.notNil and: { [\dnbVol, \dnbChaos, \dnbRoll, \dnbStutter, \dnbBreakHPF, \dnbKickAmp, \dnbSidechainDepth, \dnbRateOffset, \dnbRev, \dnbTargetBpm, \dnbSourceBpm].includes(param) }) {
-			~setDnbParam.(param, v);
+		if(param == \dnbEnergy and: { ~setDnbEnergy.notNil }) {
+			~setDnbEnergy.(v, syncUI);
+		} {
+			if(param == \dnbTone and: { ~setDnbTone.notNil }) {
+				~setDnbTone.(v, syncUI);
+			} {
+				if(param == \vocalTexture and: { ~setVocalTexture.notNil }) {
+					~setVocalTexture.(v, syncUI);
+				} {
+					if(param == \vocalTone and: { ~setVocalTone.notNil }) {
+						~setVocalTone.(v, syncUI);
+					} {
+						if(~setDnbParam.notNil and: { [\dnbVol, \dnbChaos, \dnbRoll, \dnbStutter, \dnbBreakHPF, \dnbKickAmp, \dnbSidechainDepth, \dnbRateOffset, \dnbRev, \dnbTargetBpm, \dnbSourceBpm].includes(param) }) {
+							~setDnbParam.(param, v);
+						};
+						if(~setSubParam.notNil and: { [\subLevel, \subDuckDepth, \subGlide, \subSat, \masterVol, \rootHz, \transport].includes(param) }) {
+							~setSubParam.(param, v);
+						};
+						~paramState[param] = v;
+						if(~shiftko.notNil) { ~shiftko.set(param, v); };
+						if(syncUI and: { ~uiControls[param].notNil }) { ~uiControls[param][\set].(v); };
+						if(~sendMidiFeedback.notNil) { ~sendMidiFeedback.(param, v); };
+					};
+				};
+			};
 		};
-		~paramState[param] = v;
-		if(~shiftko.notNil) { ~shiftko.set(param, v); };
-		if(syncUI and: { ~uiControls[param].notNil }) { ~uiControls[param][\set].(v); };
-		if(~sendMidiFeedback.notNil) { ~sendMidiFeedback.(param, v); };
 	};
 	~applyParams = { |arr, syncUI=true|
 		arr.clump(2).do { |pair| ~setParam.(pair[0], pair[1], syncUI); };
@@ -363,14 +457,68 @@ s.waitForBoot {
 			};
 		};
 	};
+	~ensureAudibleState = {
+		~setParam.(\transport, 1, true);
+		~setParam.(\droneGate, 1, true);
+		~setParam.(\notesGate, 1, true);
+		~setParam.(\noiseGate, 1, true);
+		~setParam.(\textureGate, 1, true);
+		if((~paramState[\masterVol] ? 0.0) < 0.12) { ~setParam.(\masterVol, 0.24, true); };
+		if((~paramState[\droneLevel] ? 0.0) < 0.03) { ~setParam.(\droneLevel, 0.55, true); };
+		if((~paramState[\notesLevel] ? 0.0) < 0.03) { ~setParam.(\notesLevel, 0.48, true); };
+		if((~paramState[\subLevel] ? 0.0) < 0.04) { ~setParam.(\subLevel, 0.12, true); };
+		if((~paramState[\dnbVol] ? 0.0) < 0.05) { ~setParam.(\dnbVol, 0.28, true); };
+		~setParam.(\dreamMode, 1, true);
+		if((~paramState[\dreamDepth] ? 0.0) < 0.1) { ~setParam.(\dreamDepth, 0.35, true); };
+		~setParam.(\ambientFreeRun, 1, true);
+		if((~paramState[\ambientRateHz] ? 0.0) < 0.02) { ~setParam.(\ambientRateHz, 0.11, true); };
+	};
+	~harmonyModes = [\pentatonic, \cosmic, \blend, \allNotes];
+	~harmonyMode = \blend;
+	~setHarmonyMode = { |mode=\blend, syncUI=true|
+		var m = mode.asSymbol;
+		case
+		{ m == \pentatonic } {
+			~applyParams.([
+				\cosmicW, 0, \wonderW, 100, \hopefulW, 0, \kotoW, 0, \ragaW, 0, \pelogW, 0, \safir16W, 0,
+				\noteDensity, 0.88, \weightEvolve, 0.08
+			], true);
+		}
+		{ m == \cosmic } {
+			~applyParams.([
+				\cosmicW, 100, \wonderW, 0, \hopefulW, 0, \kotoW, 0, \ragaW, 0, \pelogW, 0, \safir16W, 0,
+				\noteDensity, 0.86, \weightEvolve, 0.06
+			], true);
+		}
+		{ m == \allNotes } {
+			~applyParams.([
+				// "All Notes" here means all SAFE families (no exotic dissonant sets)
+				\cosmicW, 34, \wonderW, 33, \hopefulW, 33, \kotoW, 0, \ragaW, 0, \pelogW, 0, \safir16W, 0,
+				\noteDensity, 0.92, \weightEvolve, 0.16
+			], true);
+		}
+		{
+			~applyParams.([
+				\cosmicW, 30, \wonderW, 40, \hopefulW, 30, \kotoW, 0, \ragaW, 0, \pelogW, 0, \safir16W, 0,
+				\noteDensity, 0.9, \weightEvolve, 0.12
+			], true);
+		};
+		~harmonyMode = m;
+		if(syncUI and: { ~harmonyModeBtn.notNil }) {
+			{
+				~harmonyModeBtn.value = (~harmonyModes.indexOf(~harmonyMode) ? 2);
+			}.defer;
+		};
+		("Harmony mode: " ++ ~harmonyMode).postln;
+	};
 
 	// Startinstanz
 	~shiftko = Synth(\shiftkoAmbientMath);
 	~applyParams.(~defaultState, false);
 	~scenePresets = (
-		safe: [\safeMode, 1, \mixMode, 0, \chaosDepth, 0.10, \textureDuck, 0.72, \weightEvolve, 0.10, \noteDensity, 0.82, \calmness, 0.78, \auxInEnable, 0, \auxInLevel, 0.0, \auxInBlend, 0.0, \autoGainProtect, 1, \loudnessTarget, 0.24, \dnbVol, 0.0, \dnbChaos, 0.25, \dnbRoll, 0.0, \dnbStutter, 0.06, \dnbBreakHPF, 120, \dnbKickAmp, 0.32, \dnbSidechainDepth, 0.14, \dnbRateOffset, 1.0, \dnbRev, 0.1, \textureLevel, 0.035, \noiseLevel, 0.03, \notesLevel, 0.52, \droneLevel, 0.55],
-		focus: [\safeMode, 1, \mixMode, 0, \chaosDepth, 0.14, \textureDuck, 0.8, \weightEvolve, 0.08, \noteDensity, 0.95, \calmness, 0.7, \auxInEnable, 0, \auxInLevel, 0.0, \auxInBlend, 0.0, \autoGainProtect, 1, \loudnessTarget, 0.26, \dnbVol, 0.0, \dnbChaos, 0.35, \dnbRoll, 0.15, \dnbStutter, 0.10, \dnbBreakHPF, 90, \dnbKickAmp, 0.45, \dnbSidechainDepth, 0.18, \dnbRateOffset, 1.0, \dnbRev, 0.18, \textureLevel, 0.03, \noiseLevel, 0.025, \notesLevel, 0.62, \droneLevel, 0.5, \cosmicW, 20, \wonderW, 45, \hopefulW, 35, \kotoW, 0, \ragaW, 0, \pelogW, 0, \safir16W, 0],
-		wild: [\safeMode, 0, \mixMode, 0, \chaosDepth, 0.24, \textureDuck, 0.45, \weightEvolve, 0.45, \noteDensity, 0.98, \calmness, 0.22, \auxInEnable, 0, \auxInLevel, 0.0, \auxInBlend, 0.0, \autoGainProtect, 1, \loudnessTarget, 0.3, \dnbVol, 0.0, \dnbChaos, 0.5, \dnbRoll, 0.25, \dnbStutter, 0.18, \dnbBreakHPF, 70, \dnbKickAmp, 0.6, \dnbSidechainDepth, 0.26, \dnbRateOffset, 1.05, \dnbRev, 0.22, \textureLevel, 0.08, \noiseLevel, 0.06, \notesLevel, 0.6, \droneLevel, 0.62]
+		safe: [\safeMode, 1, \mixMode, 0, \chaosDepth, 0.10, \textureDuck, 0.72, \weightEvolve, 0.10, \noteDensity, 0.82, \calmness, 0.78, \auxInEnable, 0, \auxInLevel, 0.0, \auxInBlend, 0.0, \autoGainProtect, 1, \loudnessTarget, 0.24, \dnbVol, 0.0, \dnbChaos, 0.25, \dnbRoll, 0.0, \dnbStutter, 0.06, \dnbBreakHPF, 120, \dnbKickAmp, 0.32, \dnbSidechainDepth, 0.14, \dnbRateOffset, 1.0, \dnbRev, 0.1, \textureLevel, 0.035, \noiseLevel, 0.03, \notesLevel, 0.52, \droneLevel, 0.55, \bellLevel, 0.08, \subLevel, 0.12, \subDuckDepth, 0.22],
+		focus: [\safeMode, 1, \mixMode, 0, \chaosDepth, 0.14, \textureDuck, 0.8, \weightEvolve, 0.08, \noteDensity, 0.95, \calmness, 0.7, \auxInEnable, 0, \auxInLevel, 0.0, \auxInBlend, 0.0, \autoGainProtect, 1, \loudnessTarget, 0.26, \dnbVol, 0.0, \dnbChaos, 0.35, \dnbRoll, 0.15, \dnbStutter, 0.10, \dnbBreakHPF, 90, \dnbKickAmp, 0.45, \dnbSidechainDepth, 0.18, \dnbRateOffset, 1.0, \dnbRev, 0.18, \textureLevel, 0.03, \noiseLevel, 0.025, \notesLevel, 0.62, \droneLevel, 0.5, \bellLevel, 0.12, \subLevel, 0.14, \subDuckDepth, 0.28, \cosmicW, 30, \wonderW, 40, \hopefulW, 30, \kotoW, 0, \ragaW, 0, \pelogW, 0, \safir16W, 0],
+		wild: [\safeMode, 0, \mixMode, 0, \chaosDepth, 0.24, \textureDuck, 0.45, \weightEvolve, 0.45, \noteDensity, 0.98, \calmness, 0.22, \auxInEnable, 0, \auxInLevel, 0.0, \auxInBlend, 0.0, \autoGainProtect, 1, \loudnessTarget, 0.3, \dnbVol, 0.0, \dnbChaos, 0.5, \dnbRoll, 0.25, \dnbStutter, 0.18, \dnbBreakHPF, 70, \dnbKickAmp, 0.6, \dnbSidechainDepth, 0.26, \dnbRateOffset, 1.05, \dnbRev, 0.22, \textureLevel, 0.08, \noiseLevel, 0.06, \notesLevel, 0.6, \droneLevel, 0.62, \bellLevel, 0.2, \subLevel, 0.16, \subDuckDepth, 0.35]
 	);
 	~sceneMorph = 0.0;
 	~pairsToDict = { |arr|
@@ -382,7 +530,7 @@ s.waitForBoot {
 		\safeMode, \mixMode, \chaosDepth, \textureDuck, \weightEvolve, \noteDensity, \calmness, \autoGainProtect, \loudnessTarget,
 		\dnbVol, \dnbChaos, \dnbRoll, \dnbStutter, \dnbBreakHPF, \dnbKickAmp, \dnbSidechainDepth, \dnbRateOffset, \dnbRev, \dnbTargetBpm, \dnbSourceBpm,
 		\auxInEnable, \auxInLevel, \auxInBlend,
-		\textureLevel, \noiseLevel, \notesLevel, \droneLevel,
+		\textureLevel, \noiseLevel, \notesLevel, \droneLevel, \bellLevel, \subLevel, \subDuckDepth,
 		\cosmicW, \wonderW, \hopefulW, \kotoW, \ragaW, \pelogW, \safir16W
 	];
 	~applySceneMorph = { |morph=0.0|
@@ -427,8 +575,10 @@ s.waitForBoot {
 		filterCutoffBase: [120, 12000, \exp], reverbRoomBase: [0.001, 0.8, \lin], masterVol: [0.001, 0.55, \lin],
 		droneLevel: [0.001, 0.8, \lin], notesLevel: [0.001, 0.8, \lin], noiseLevel: [0, 0.2, \lin], textureLevel: [0, 0.16, \lin],
 		chaosDepth: [0, 0.4, \lin], textureDuck: [0, 1, \lin], weightEvolve: [0, 1, \lin], noteDensity: [0.2, 1, \lin], calmness: [0, 1, \lin],
-		autoGainProtect: [0, 1, \lin], loudnessTarget: [0.12, 0.45, \lin],
-		dnbVol: [0, 1, \lin], dnbChaos: [0, 1, \lin], dnbRoll: [0, 1, \lin], dnbStutter: [0, 0.35, \lin], dnbBreakHPF: [30, 1200, \exp], dnbKickAmp: [0, 1, \lin], dnbSidechainDepth: [0, 0.6, \lin], dnbRateOffset: [0.25, 2.0, \lin], dnbRev: [0, 1, \lin], dnbTargetBpm: [80, 220, \lin], dnbSourceBpm: [60, 220, \lin],
+		autoGainProtect: [0, 1, \lin], loudnessTarget: [0.12, 0.45, \lin], ambientFreeRun: [0, 1, \lin], ambientRateHz: [0.01, 1.0, \lin],
+		dreamMode: [0, 1, \lin], dreamDepth: [0, 1, \lin], shimmerFb: [0, 0.95, \lin], bellLevel: [0, 0.45, \lin], subLevel: [0, 0.35, \lin], subDuckDepth: [0, 0.8, \lin], subGlide: [0.08, 6.0, \lin], subSat: [0, 0.6, \lin],
+		dnbVol: [0, 1, \lin], dnbChaos: [0, 1, \lin], dnbRoll: [0, 1, \lin], dnbStutter: [0, 0.35, \lin], dnbBreakHPF: [30, 1200, \exp], dnbKickAmp: [0, 1, \lin], dnbSidechainDepth: [0, 0.6, \lin], dnbRateOffset: [0.25, 2.0, \lin], dnbRev: [0, 1, \lin], dnbTargetBpm: [80, 220, \lin], dnbSourceBpm: [60, 220, \lin], dnbEnergy: [0, 1, \lin], dnbTone: [0, 1, \lin],
+		vocalTexture: [0, 1, \lin], vocalTone: [0, 1, \lin], noiseType: [0, 3, \lin],
 		auxInEnable: [0, 1, \lin], auxInLevel: [0, 0.9, \lin], auxInBlend: [0, 1, \lin]
 	);
 	~midiMap = (1: \textureLevel, 2: \notesLevel, 3: \droneLevel, 4: \masterVol, 5: \calmness, 6: \chaosDepth, 7: \weightEvolve, 8: \noteDensity, 9: \reverbRoomBase, 10: \filterCutoffBase, 11: \textureDuck, 12: \moodRaw, 13: \auxInLevel, 14: \auxInBlend, 15: \dnbVol, 16: \dnbChaos, 17: \dnbRoll, 18: \dnbRateOffset, 19: \dnbRev, 20: \dnbStutter, 21: \dnbBreakHPF, 22: \dnbKickAmp, 23: \dnbSidechainDepth);
@@ -573,12 +723,56 @@ s.waitForBoot {
 	~dnb = (
 		buf: nil,
 		step: 0,
+		slicesTotal: 16,
 		player: nil,
-		clock: TempoClock.new(170/60)
+		clock: TempoClock.new(170/60),
+		kickTrigBus: Bus.control(s, 1)
 	);
+	~sub = (synth: nil, level: 0.14, duckDepth: 0.28, glide: 2.4, sat: 0.2);
+	~setSubParam = { |param, value|
+		case
+		{ param == \subLevel } { ~sub[\level] = value.clip(0, 0.35) }
+		{ param == \subDuckDepth } { ~sub[\duckDepth] = value.clip(0, 0.8) }
+		{ param == \subGlide } { ~sub[\glide] = value.clip(0.08, 6.0) }
+		{ param == \subSat } { ~sub[\sat] = value.clip(0, 0.6) };
+		if(~sub[\synth].notNil) {
+			~sub[\synth].set(
+				\rootHz, (~paramState[\rootHz] ? 256).clip(64, 768),
+				\master, (~paramState[\masterVol] ? 0.24).clip(0.001, 0.55),
+				\gate, (~paramState[\transport] ? 1).clip(0, 1),
+				\level, ~sub[\level] ? 0.14,
+				\duckDepth, ~sub[\duckDepth] ? 0.28,
+				\glide, ~sub[\glide] ? 2.4,
+				\sat, ~sub[\sat] ? 0.2
+			);
+		};
+	};
+	~startSub = {
+		~stopSub.value;
+		~sub[\synth] = Synth(\ambientSubBass, [
+			\out, ~mainOutBus ? 0,
+			\duckBus, (~dnb[\kickTrigBus] ? Bus.control(s, 1)).index,
+			\rootHz, (~paramState[\rootHz] ? 256).clip(64, 768),
+			\master, (~paramState[\masterVol] ? 0.24).clip(0.001, 0.55),
+			\gate, (~paramState[\transport] ? 1).clip(0, 1),
+			\level, ~sub[\level] ? 0.14,
+			\duckDepth, ~sub[\duckDepth] ? 0.28,
+			\glide, ~sub[\glide] ? 2.4,
+			\sat, ~sub[\sat] ? 0.2
+		]);
+		"Sub bass started.".postln;
+	};
+	~stopSub = {
+		if(~sub[\synth].notNil) { ~sub[\synth].free; ~sub[\synth] = nil; };
+		"Sub bass stopped.".postln;
+	};
+	~setSubParam.(\subLevel, ~paramState[\subLevel] ? 0.14);
+	~setSubParam.(\subDuckDepth, ~paramState[\subDuckDepth] ? 0.28);
+	~setSubParam.(\subGlide, ~paramState[\subGlide] ? 2.4);
+	~setSubParam.(\subSat, ~paramState[\subSat] ? 0.2);
 	SynthDef(\dnbSlicePlayer, { |out=0, buf=0, slice=0, slicesTotal=16, amp=0.4, rate=1.0, pan=0, revMix=0.15, cutoff=15000, hpf=90|
 		var sig, env, sliceFrames, startPos, dry, wet, cutoffSm, hpfSm;
-		sliceFrames = BufFrames.kr(buf) / slicesTotal;
+		sliceFrames = BufFrames.kr(buf) / slicesTotal.max(1);
 		startPos = slice * sliceFrames;
 		env = EnvGen.kr(
 			Env([0, 1, 1, 0], [0.003, 0.9, 0.06], [-4, 0, -4]),
@@ -594,8 +788,8 @@ s.waitForBoot {
 		wet = FreeVerb2.ar(dry[0], dry[1], mix: 0.35, room: 0.86, damp: 0.45);
 		Out.ar(out, SelectX.ar(revMix.clip(0, 1), [dry, wet]) * amp);
 	}).add;
-	SynthDef(\dnbKick, { |out=0, amp=0.55, pan=0, revMix=0.03|
-		var env, pitchEnv, body, click, sig, dry, wet;
+	SynthDef(\dnbKick, { |out=0, amp=0.55, pan=0, revMix=0.03, trigOut=(-1)|
+		var env, pitchEnv, body, click, sig, dry, wet, trigSig;
 		env = EnvGen.kr(Env.perc(0.0008, 0.22, curve: -8), doneAction: 2);
 		pitchEnv = XLine.kr(190, 44, 0.045);
 		body = SinOsc.ar(pitchEnv, 0, env);
@@ -603,9 +797,41 @@ s.waitForBoot {
 		sig = (body + click).tanh;
 		dry = Pan2.ar(sig * amp.clip(0, 1.0), pan.clip(-1, 1));
 		wet = FreeVerb2.ar(dry[0], dry[1], mix: 0.25, room: 0.7, damp: 0.45);
+		trigSig = Trig1.kr((amp > 0.001), 0.08);
+		Out.kr(trigOut, trigSig);
 		Out.ar(out, SelectX.ar(revMix.clip(0, 0.4), [dry, wet]));
 	}).add;
-	SynthDef(\vocalGranCloud, { |out=0, buf=0, gate=1, amp=0.14, rate=1.0, pos=0.5, posJitter=0.18, grainDur=0.16, density=10, panWidth=0.6, hpf=120, lpf=8500, revMix=0.2|
+	SynthDef(\ambientSubBass, { |out=0, rootHz=256, level=0.14, master=0.24, gate=1, glide=2.4, sat=0.2, hpf=26, duckDepth=0.28, duckBus=0|
+		var subHz, subHzSm, duckTrig, duckEnv, duckGain, drift, sub, sig, env;
+		subHz = (rootHz.clip(64, 768) / 4).clip(28, 120);
+		subHzSm = Lag.kr(subHz, glide.clip(0.08, 6.0));
+		duckTrig = In.kr(duckBus, 1).clip(0, 1);
+		duckEnv = LagUD.kr(duckTrig, 0.002, 0.2);
+		duckGain = (1 - (duckEnv * duckDepth.clip(0, 0.8))).clip(0.16, 1.0);
+		drift = SinOsc.kr(0.035).range(0.997, 1.003);
+		sub = SinOsc.ar(subHzSm * drift);
+		sub = sub + (SinOsc.ar(subHzSm * 2, 0, 0.12));
+		sig = tanh(sub * (1 + sat.clip(0, 0.6)));
+		sig = LPF.ar(sig, 220);
+		sig = HPF.ar(sig, hpf.clip(18, 90));
+		env = Lag.kr(gate.clip(0, 1), 0.25);
+		sig = (sig * level.clip(0, 0.35) * master.clip(0.001, 0.55) * duckGain * env) ! 2;
+		Out.ar(out, sig.clip2(0.35));
+	}).add;
+	SynthDef(\ambientPulse, { |out=0, freq=440, amp=0.08, pan=0, rel=1.2, bright=4200, rate=1.0|
+		var env, exciter, tone, sig, cutoff;
+		env = EnvGen.kr(Env.perc(0.002, rel.clip(0.2, 4.0), 1, -5), doneAction: 2);
+		exciter = HPF.ar(PinkNoise.ar(0.22), 1400) * EnvGen.kr(Env.perc(0.0007, 0.01, 1, -8));
+		tone = SinOsc.ar(freq.clip(90, 9000) * rate.clip(0.7, 1.3), 0, 0.62) + (SinOsc.ar(freq * 2.01 * rate, 0, 0.28));
+		cutoff = Lag.kr(bright.clip(900, 12000), 0.05);
+		sig = (tone + exciter) * env * amp.clip(0, 0.3);
+		sig = RLPF.ar(sig, cutoff, 0.42);
+		sig = HPF.ar(sig, 180);
+		sig = Pan2.ar(sig, pan.clip(-1, 1));
+		sig = FreeVerb2.ar(sig[0], sig[1], mix: 0.22, room: 0.9, damp: 0.45);
+		Out.ar(out, sig.clip2(0.45));
+	}).add;
+SynthDef(\vocalGranCloud, { |out=0, buf=0, gate=1, amp=0.2, rate=1.0, pos=0.5, posJitter=0.18, grainDur=0.16, density=10, panWidth=0.6, hpf=120, lpf=8500, revMix=0.2|
 		var env, trig, centerPos, pan, sig, dry, wet;
 		var rateSm, ampSm, posSm, jitterSm, durSm, densSm, panSm;
 		rateSm = Lag.kr(rate.clip(0.25, 2.0), 0.08);
@@ -621,7 +847,7 @@ s.waitForBoot {
 		pan = LFNoise1.kr(8).range((0 - panSm), panSm);
 		sig = TGrains.ar(2, trig, buf, BufRateScale.kr(buf) * rateSm, centerPos, durSm, pan, 1.0, 4);
 		dry = HPF.ar(LPF.ar(sig, lpf.clip(500, 14000)), hpf.clip(40, 1200));
-		dry = LeakDC.ar(dry) * ampSm * env;
+		dry = LeakDC.ar(dry) * ampSm * env * 1.2;
 		wet = FreeVerb2.ar(dry[0], dry[1], mix: 0.28, room: 0.82, damp: 0.4);
 		Out.ar(out, SelectX.ar(revMix.clip(0, 1), [dry, wet]));
 	}).add;
@@ -652,12 +878,58 @@ s.waitForBoot {
 	~setDnbParam.(\dnbRateOffset, ~paramState[\dnbRateOffset] ? 1.0);
 	~setDnbParam.(\dnbRev, ~paramState[\dnbRev] ? 0.12);
 	~setDnbParam.(\dnbTargetBpm, ~paramState[\dnbTargetBpm] ? 170);
-	~setDnbParam.(\dnbSourceBpm, ~paramState[\dnbSourceBpm] ? 135);
-	~loadDnbSample = { |path|
+	~setDnbParam.(\dnbSourceBpm, ~paramState[\dnbSourceBpm] ? 170);
+	~setDnbEnergy = { |value, syncUI=true|
+		var x = value.clip(0, 1);
+		var updates = [
+			\dnbEnergy, x,
+			\dnbChaos, x.linlin(0, 1, 0.18, 0.78),
+			\dnbRoll, x.linlin(0, 1, 0.0, 0.42),
+			\dnbStutter, x.linlin(0, 1, 0.03, 0.22),
+			\dnbKickAmp, x.linlin(0, 1, 0.2, 0.75),
+			\dnbSidechainDepth, x.linlin(0, 1, 0.1, 0.36)
+		];
+		updates.clump(2).do { |pair|
+			var p = pair[0], pv = pair[1];
+			if(~setDnbParam.notNil and: { [\dnbVol, \dnbChaos, \dnbRoll, \dnbStutter, \dnbBreakHPF, \dnbKickAmp, \dnbSidechainDepth, \dnbRateOffset, \dnbRev, \dnbTargetBpm, \dnbSourceBpm].includes(p) }) {
+				~setDnbParam.(p, pv);
+			};
+			~paramState[p] = pv;
+			if(~shiftko.notNil) { ~shiftko.set(p, pv); };
+			if(syncUI and: { ~uiControls[p].notNil }) { ~uiControls[p][\set].(pv); };
+			if(~sendMidiFeedback.notNil) { ~sendMidiFeedback.(p, pv); };
+		};
+	};
+	~setDnbTone = { |value, syncUI=true|
+		var x = value.clip(0, 1);
+		var updates = [
+			\dnbTone, x,
+			\dnbBreakHPF, x.linlin(0, 1, 60, 420),
+			\dnbRev, x.linlin(0, 1, 0.08, 0.28)
+		];
+		updates.clump(2).do { |pair|
+			var p = pair[0], pv = pair[1];
+			if(~setDnbParam.notNil and: { [\dnbVol, \dnbChaos, \dnbRoll, \dnbStutter, \dnbBreakHPF, \dnbKickAmp, \dnbSidechainDepth, \dnbRateOffset, \dnbRev, \dnbTargetBpm, \dnbSourceBpm].includes(p) }) {
+				~setDnbParam.(p, pv);
+			};
+			~paramState[p] = pv;
+			if(~shiftko.notNil) { ~shiftko.set(p, pv); };
+			if(syncUI and: { ~uiControls[p].notNil }) { ~uiControls[p][\set].(pv); };
+			if(~sendMidiFeedback.notNil) { ~sendMidiFeedback.(p, pv); };
+		};
+	};
+	~setDnbEnergy.(~paramState[\dnbEnergy] ? 0.35, false);
+	~setDnbTone.(~paramState[\dnbTone] ? 0.45, false);
+	~loadDnbSample = { |path, sourceBpm=170|
 		if(path.notNil and: { path.size > 0 }) {
 			if(~dnb[\buf].notNil) { ~dnb[\buf].free; };
 			~dnb[\buf] = Buffer.read(s, path, action: { |b|
+				var beatCount = ((b.duration * sourceBpm.clip(60, 220)) / 60).clip(1, 16);
+				var st = (beatCount * 4).round(1).asInteger.clip(8, 64);
+				~dnb[\slicesTotal] = st;
+				~dnb[\step] = 0;
 				("DnB sample loaded: " ++ path).postln;
+				("DnB slicesTotal auto-set: " ++ st).postln;
 			});
 		};
 	};
@@ -666,9 +938,9 @@ s.waitForBoot {
 		var path = paths.wrapAt(idx.asInteger);
 		var bpm;
 		if(path.notNil) {
-			~loadDnbSample.(path);
-			bpm = ~getSampleSourceBpm.(path, (~paramState[\dnbSourceBpm] ? 170));
+			bpm = ~getSampleSourceBpm.(path, 170);
 			~setParam.(\dnbSourceBpm, bpm, true);
+			~loadDnbSample.(path, bpm);
 			("Break loaded [" ++ idx ++ "]: " ++ path ++ " | sourceBpm=" ++ bpm).postln;
 		};
 	};
@@ -693,20 +965,22 @@ s.waitForBoot {
 					[
 						Pfunc {
 							var s = ~dnb[\step] ? 0;
-							~dnb[\step] = (s + 1) % 16;
+							var st = (~dnb[\slicesTotal] ? 16).asInteger.max(1);
+							~dnb[\step] = (s + 1) % st;
 							s
 						},
-						Pfunc { 16.rand }
+						Pfunc { (~dnb[\slicesTotal] ? 16).asInteger.max(1).rand }
 					],
 					[0.8, 0.2],
 					inf
 				)
 			),
+			\slicesTotal, Pfunc { (~dnb[\slicesTotal] ? 16).asInteger.clip(8, 64) },
 			\rate, Pfunc {
 				// Tempo-adaptive playback (not locked to 170):
 				// rate = targetBpm / sourceBpm * rateOffset
 				var target = (~dnb[\targetBpm] ? 170).clip(80, 220);
-				var source = (~dnb[\sourceBpm] ? 135).clip(60, 220);
+				var source = (~dnb[\sourceBpm] ? 170).clip(60, 220);
 				var off = (~dnb[\rateOffset] ? 1.0).clip(0.25, 2.0);
 				(target / source) * off
 			},
@@ -718,8 +992,9 @@ s.waitForBoot {
 				Pfunc { (~dnb[\vol] ? 0.0).clip(0, 1) * 0.90 }
 			),
 			\sidechain, Pfunc { (~dnb[\sidechainDepth] ? 0.18).clip(0, 0.6) },
-			\amp, Pkey(\baseAmp) * (1 - Pkey(\sidechain)),
-			\cutoff, Pif(Pkey(\isGhost) > 0, 1200, 15000),
+			// Keep these as floats so Pwhite generates smooth values (not hard integer steps).
+			\amp, (Pkey(\baseAmp) * (1 - Pkey(\sidechain))) * Pwhite(0.9, 1.1, inf),
+			\cutoff, Pif(Pkey(\isGhost) > 0, Pwhite(900.0, 2200.0, inf), Pwhite(8500.0, 16000.0, inf)),
 			\revMix, Pfunc { (~dnb[\rev] ? 0.12).clip(0, 1) },
 			\pan, Pwhite(-0.12, 0.12, inf)
 		)
@@ -728,6 +1003,7 @@ s.waitForBoot {
 		Pbind(
 			\instrument, \dnbKick,
 			\dur, 0.25,
+			\trigOut, Pfunc { (~dnb[\kickTrigBus] ? Bus.control(s, 1)).index },
 			\isKick, Pseq([1, 0, 0, 0, 1, 0, 0, 0], inf),
 			\amp, Pif(
 				Pkey(\isKick) > 0,
@@ -764,11 +1040,124 @@ s.waitForBoot {
 		};
 	};
 	// -------------------------
+	// Generative Ambient Rhythm Subsystem (Pbind-first)
+	// -------------------------
+	~ambientRhythm = (
+		player: nil,
+		clock: TempoClock.new(1.0),
+		activeMode: \flow
+	);
+	~ambientEuclidSeeds = [
+		[1, 0, 0, 1, 0, 0, 1, 0],
+		[1, 0, 1, 0, 1, 0, 0, 0],
+		[1, 0, 0, 1, 0, 1, 0, 0]
+	];
+	~makeAmbientRhythmPattern = {
+		Plazy({
+			var mode = [\flow, \sparse, \ratchet, \euclid, \lsys].wchoose([0.32, 0.2, 0.18, 0.18, 0.12]);
+			var euclidSeed = (~ambientEuclidSeeds ? [[1, 0, 0, 1, 0, 0, 1, 0]]).choose;
+			var lsysDurRaw = Prewrite(
+				0,
+				(
+					0: #[0, 1, 2],
+					1: #[0, 2, 1, 0],
+					2: #[1, 0, 2]
+				),
+				5
+			);
+			var lsysAmpRaw = Prewrite(
+				1,
+				(
+					0: #[0, 1],
+					1: #[2, 1, 0],
+					2: #[1, 2]
+				),
+				4
+			);
+			var lsysDurPat = Pcollect({ |x|
+				[0.25, 0.5, 0.75].wrapAt(x.asInteger);
+			}, lsysDurRaw);
+			var lsysAmpGatePat = Pcollect({ |x|
+				[0.0, 1.0, 0.7].wrapAt(x.asInteger);
+			}, lsysAmpRaw);
+			var durPat = switch(mode,
+				\flow, {
+					Prand([
+						Pseq([0.75, 0.5, 1.0, 1.25], 1),
+						Pseq([1.0, 0.5, 0.5, 1.5], 1),
+						Pseq([0.5, 0.25, 0.75, 1.5], 1)
+					], inf)
+				},
+				\sparse, {
+					Prand([Pseq([1.5, 2.0, 1.0], 1), Pseq([2.0, 1.0, 1.0], 1)], inf)
+				},
+				\ratchet, {
+					Pdup(
+						Pwrand([1, 2, 3], [0.55, 0.33, 0.12], inf),
+						Pwrand([0.5, 0.25, 0.125], [0.34, 0.42, 0.24], inf)
+					)
+				},
+				\lsys, {
+					lsysDurPat
+				},
+				{
+					Pseq([0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5], inf)
+				}
+			);
+			~ambientRhythm[\activeMode] = mode;
+			Pbind(
+				\instrument, \ambientPulse,
+				\out, Pfunc { ~mainOutBus ? 0 },
+				\dur, durPat,
+				\baseAmp, Pfunc {
+					var notesLvl = (~paramState[\notesLevel] ? 0.5).clip(0, 0.8);
+					var calm = (~paramState[\calmness] ? 0.6).clip(0, 1);
+					(notesLvl * calm.linlin(0, 1, 0.28, 0.48)).clip(0.01, 0.22)
+				},
+				\ghost, Pwrand([0, 1], [0.76, 0.24], inf),
+				\euclidGate, if(mode == \euclid) { Pseq(euclidSeed, inf) } { 1 },
+				\lsysGate, if(mode == \lsys) { lsysAmpGatePat } { 1.0 },
+				\amp, Pif(
+					Pkey(\ghost) > 0,
+					Pkey(\baseAmp) * 0.33,
+					Pkey(\baseAmp) * Pwhite(0.82, 1.18, inf)
+				) * Pkey(\euclidGate) * Pkey(\lsysGate),
+				\type, Pif(Pkey(\amp) > 0, \note, \rest),
+				\freq, Pfunc {
+					var root = (~paramState[\rootHz] ? 256).clip(64, 768);
+					var ratio = [1, 5/4, 3/2, 2].wchoose([0.36, 0.24, 0.26, 0.14]);
+					var oct = [1, 2, 4].wchoose([0.52, 0.36, 0.12]);
+					root * ratio * oct
+				},
+				\bright, (Pkey(\amp).linlin(0.001, 0.22, 1800, 9000) * Pwhite(0.92, 1.08, inf)).clip(1400, 9800),
+				\pan, Pkey(\freq).linlin(120, 4000, -0.58, 0.58).clip(-0.72, 0.72),
+				\rate, Pkey(\pan).linlin(-0.72, 0.72, 0.94, 1.06),
+				\rel, Pfunc {
+					var dream = (~paramState[\dreamDepth] ? 0.35).clip(0, 1);
+					(dream.linlin(0, 1, 0.65, 2.8) * [0.85, 1.0, 1.25].choose).clip(0.28, 3.5)
+				}
+			)
+		})
+	};
+	~startAmbientRhythm = {
+		~stopAmbientRhythm.value;
+		~ambientRhythm[\clock].tempo = (((~paramState[\bpm] ? 60).clip(30, 100)) / 60) * 0.5;
+		~ambientRhythm[\player] = ~makeAmbientRhythmPattern.value.play(~ambientRhythm[\clock], quant: 1);
+		("Ambient rhythm started (" ++ (~ambientRhythm[\activeMode] ? \flow) ++ ").").postln;
+	};
+	~stopAmbientRhythm = {
+		if(~ambientRhythm[\player].notNil) { ~ambientRhythm[\player].stop; ~ambientRhythm[\player] = nil; };
+		"Ambient rhythm stopped.".postln;
+	};
+	~toggleAmbientRhythm = {
+		if(~ambientRhythm[\player].notNil) { ~stopAmbientRhythm.value } { ~startAmbientRhythm.value };
+	};
+	// -------------------------
 	// Vocal Granular Subsystem
 	// -------------------------
 	~vocal = (
 		buf: nil, synth: nil, idx: 0,
-		amp: 0.14, rate: 1.0, pos: 0.5, posJitter: 0.18, grainDur: 0.16, density: 10,
+		amp: 0.2, rate: 1.0, pos: 0.5, posJitter: 0.18, grainDur: 0.16, density: 10,
 		panWidth: 0.6, hpf: 120, lpf: 8500, rev: 0.2
 	);
 	~setVocalParam = { |param, value|
@@ -791,6 +1180,49 @@ s.waitForBoot {
 			);
 		};
 	};
+	~setVocalTexture = { |value, syncUI=true|
+		var x = value.clip(0, 1);
+		var updates = [
+			\vocalTexture, x,
+			\vocalJitter, x.linlin(0, 1, 0.05, 0.35),
+			\vocalDensity, x.linlin(0, 1, 6, 38),
+			\vocalGrainDur, x.linlin(0, 1, 0.24, 0.06),
+			\vocalPos, x.linlin(0, 1, 0.35, 0.7)
+		];
+		updates.clump(2).do { |pair|
+			var p = pair[0], pv = pair[1];
+			~paramState[p] = pv;
+			if(p == \vocalTexture) {
+				if(syncUI and: { ~uiControls[p].notNil }) { ~uiControls[p][\set].(pv); };
+				if(~sendMidiFeedback.notNil) { ~sendMidiFeedback.(p, pv); };
+			} {
+				~setVocalParam.(p, pv);
+				if(syncUI and: { ~uiControls[p].notNil }) { ~uiControls[p][\set].(pv); };
+			};
+		};
+	};
+	~setVocalTone = { |value, syncUI=true|
+		var x = value.clip(0, 1);
+		var updates = [
+			\vocalTone, x,
+			\vocalHpf, x.linlin(0, 1, 60, 420),
+			\vocalLpf, x.linlin(0, 1, 12000, 2500),
+			\vocalRev, x.linlin(0, 1, 0.1, 0.32)
+		];
+		updates.clump(2).do { |pair|
+			var p = pair[0], pv = pair[1];
+			~paramState[p] = pv;
+			if(p == \vocalTone) {
+				if(syncUI and: { ~uiControls[p].notNil }) { ~uiControls[p][\set].(pv); };
+				if(~sendMidiFeedback.notNil) { ~sendMidiFeedback.(p, pv); };
+			} {
+				~setVocalParam.(p, pv);
+				if(syncUI and: { ~uiControls[p].notNil }) { ~uiControls[p][\set].(pv); };
+			};
+		};
+	};
+	~setVocalTexture.(~paramState[\vocalTexture] ? 0.45, false);
+	~setVocalTone.(~paramState[\vocalTone] ? 0.45, false);
 	~loadVocalSample = { |path|
 		if(path.notNil and: { path.size > 0 }) {
 			if(~vocal[\buf].notNil) { ~vocal[\buf].free; };
@@ -1013,6 +1445,7 @@ s.waitForBoot {
 			\masterVol, 0.001,
 			\auxInEnable, 0, \auxInLevel, 0.0, \auxInBlend, 0.0
 		], true);
+		~stopAmbientRhythm.value;
 		~stopAutoScenes.value;
 		"PANIC: output silenced.".postln;
 	};
@@ -1023,76 +1456,7 @@ s.waitForBoot {
 		"Restored from scene/default state.".postln;
 	};
 	~openVisualDashboard = {
-		if(~visualWin.notNil) { ~visualWin.close; };
-		~visualWin = Window("SHIFTKO Visual Dashboard", Rect(1180, 80, 420, 340)).front.alwaysOnTop_(true);
-		~visualWin.view.background = Color.black;
-		StaticText(~visualWin, Rect(10, 8, 400, 18))
-			.string_("Low-CPU Visuals (AppClock-safe)")
-			.stringColor_(Color.white);
-		~visualView = UserView(~visualWin, Rect(10, 30, 400, 280))
-			.background_(Color.black)
-			.animate_(true)
-			.frameRate_(12)
-			.drawFunc_({
-				var vol = (~paramState[\masterVol] ? 0.4).linlin(0.001, 0.55, 0, 1).clip(0, 1);
-				var cut = (~paramState[\filterCutoffBase] ? 1800).linlog(120, 12000, 0, 1).clip(0, 1);
-				var dnb = (~paramState[\dnbVol] ? 0).clip(0, 1);
-				var rev = (~paramState[\reverbRoomBase] ? 0.4).linlin(0.001, 0.8, 0, 1).clip(0, 1);
-				var cpu = (s.avgCPU ? 0).linlin(0, 100, 0, 1).clip(0, 1);
-				var scene = (~currentScene ? \safe).asString;
-				var auto = (~autoSceneEnabled ? false);
-				var midiFb = (~midiFeedback ? false);
-				var cpuG = (~autoCpuGuard ? true);
-				var t = Main.elapsedTime;
-				var drawWave = { |x, y, w, h|
-					var steps = 48;
-					Pen.color = Color.gray(0.25);
-					Pen.addRect(Rect(x, y, w, h));
-					Pen.stroke;
-					Pen.color = Color.cyan(0.9);
-					steps.do { |i|
-						var px = x + (i / (steps - 1)) * w;
-						var ph = (sin((i * 0.35) + (t * 2.2)) * 0.35
-							+ sin((i * 0.9) + (t * 1.1)) * 0.2
-							+ (dnb * 0.25)) * (h * 0.45);
-						var py = y + (h * 0.5) + ph;
-						if(i == 0) { Pen.moveTo(Point(px, py)); } { Pen.lineTo(Point(px, py)); };
-					};
-					Pen.stroke;
-				};
-				var drawLamp = { |x, y, label, on, onColor|
-					Pen.color = on.if(onColor, Color.gray(0.25));
-					Pen.fillOval(Rect(x, y, 10, 10));
-					Pen.color = Color.white;
-					Pen.stringAtPoint(label, Point(x + 14, y + 9));
-				};
-				var drawBar = { |y, value, label, col|
-					Pen.color = Color.gray(0.2);
-					Pen.addRect(Rect(10, y, 380, 24));
-					Pen.fill;
-					Pen.color = col;
-					Pen.addRect(Rect(10, y, 380 * value, 24));
-					Pen.fill;
-					Pen.color = Color.white;
-					Pen.stringAtPoint(label ++ "  " ++ (value * 100).round(1) ++ "%", Point(14, y + 16));
-				};
-				Pen.fillColor = Color.black;
-				Pen.fillRect(Rect(0, 0, 400, 280));
-				drawBar.(12, vol, "Master", Color.green(0.8));
-				drawBar.(48, cut, "Cutoff", Color.cyan(0.8));
-				drawBar.(84, dnb, "DnB", Color.magenta(0.8));
-				drawBar.(120, rev, "Reverb", Color.blue(0.8));
-				drawBar.(156, cpu, "CPU", Color.red(0.8));
-				drawWave.(10, 194, 260, 44);
-				Pen.color = Color.white;
-				Pen.stringAtPoint("Scene: " ++ scene, Point(280, 206));
-				drawLamp.(280, 218, "AUTO", auto, Color.green(0.8));
-				drawLamp.(280, 234, "MIDI FB", midiFb, Color.cyan(0.8));
-				drawLamp.(280, 250, "CPU GUARD", cpuG, Color.yellow(0.85));
-			});
-		~visualWin.onClose_({
-			if(~visualView.notNil) { ~visualView.animate_(false); };
-		});
+		"Visual dashboard disabled (hardware-first UI).".postln;
 	};
 	~closeVisualDashboard = {
 		if(~visualWin.notNil) { ~visualWin.close; ~visualWin = nil; };
@@ -1321,41 +1685,20 @@ s.waitForBoot {
 		}).play(AppClock);
 	};
 
-	// Live-Performance-UI: Slider, Buttons und Encoder-Knoepfe
+	// Live-Performance-UI: cleaned hardware-first layout
 	{
-		var win, mkSlider, mkKnob, mkToggle, mkStateToggle, mkWeightSlider, autoSceneBtn, arrangementBtn, mkVocalKnob;
-		var midiOutBtn, fbPageMenu, fbRateKnob, sceneMorphKnob;
-		var learnParamMenu, learnTypeMenu, learnBtn;
-		var learnParams, monitorText, cpuGuardBtn;
-		var dnbPageMenu, vocalPathText;
-		var arrPhaseMenu, arrParamMenu, arrEditNum, arrApplyBtn, arrApplyPhaseBtn, arrEditPhase, arrEditParam, updateArrEditor;
-		var uiModeBtn, applyUiMode, basicUiMode;
-		var x = 10, y = 10, w = 190, h = 58, gapY = 62;
+		var win, mkSlider, mkKnob, mkVocalKnob;
+		var vocalPathText, dnbBtn, vocBtn;
 
-		// Alte Instanz vermeiden, falls Script erneut ausgefuehrt wird.
 		if(~shiftkoWin.notNil) { ~shiftkoWin.close; };
-
-		win = Window("SHIFTKO Live Control", Rect(100, 80, 1320, 920)).front.alwaysOnTop_(true);
+		win = Window("SHIFTKO Live Control", Rect(120, 90, 980, 640)).front.alwaysOnTop_(true);
 		~shiftkoWin = win;
-		basicUiMode = true;
-		applyUiMode = { |isBasic|
-			win.view.children.do { |v|
-				var b = v.bounds;
-				var keepInBasic = (
-					((b.top < 170) and: { b.left < 760 }) // core engine controls only
-					or: { (b.left >= 360) and: { (b.top >= 450) and: { b.top < 590 } } } // save/load/reset essentials
-					or: { (b.left >= 340) and: { b.top >= 590 } } // DnB + Vocal blocks
-				);
-				v.visible = if(isBasic) { keepInBasic } { true };
-			};
-			if(uiModeBtn.notNil) { uiModeBtn.visible = true; };
-		};
 
-		mkSlider = { |label, param, min, max, init, posX, posY|
-			var txt, sl, num;
-			txt = StaticText(win, Rect(posX, posY, 90, 20)).string_(label);
-			sl = Slider(win, Rect(posX + 95, posY, 180, 20)).value_((init - min) / (max - min));
-			num = NumberBox(win, Rect(posX + 280, posY, 70, 20)).value_(init.clip(min, max));
+		mkSlider = { |label, param, min, max, init, x, y|
+			var sl, num;
+			StaticText(win, Rect(x, y, 90, 20)).string_(label);
+			sl = Slider(win, Rect(x + 90, y, 180, 20)).value_((init - min) / (max - min));
+			num = NumberBox(win, Rect(x + 276, y, 72, 20)).value_(init.clip(min, max));
 			sl.action_({
 				var v = sl.value.linlin(0, 1, min, max);
 				num.value = v;
@@ -1374,15 +1717,11 @@ s.waitForBoot {
 			});
 		};
 
-		mkWeightSlider = { |label, param, init, posX, posY|
-			mkSlider.(label, param, 0, 100, init, posX, posY);
-		};
-
-		mkKnob = { |label, param, min, max, init, posX, posY|
-			var txt, kb, num;
-			txt = StaticText(win, Rect(posX, posY, 90, 20)).string_(label);
-			kb = Knob(win, Rect(posX + 95, posY - 8, 46, 46)).value_((init - min) / (max - min));
-			num = NumberBox(win, Rect(posX + 150, posY, 70, 20)).value_(init.clip(min, max));
+		mkKnob = { |label, param, min, max, init, x, y|
+			var kb, num;
+			StaticText(win, Rect(x, y, 90, 20)).string_(label);
+			kb = Knob(win, Rect(x + 92, y - 8, 46, 46)).value_((init - min) / (max - min));
+			num = NumberBox(win, Rect(x + 144, y, 70, 20)).value_(init.clip(min, max));
 			kb.action_({
 				var v = kb.value.linlin(0, 1, min, max);
 				num.value = v;
@@ -1400,486 +1739,103 @@ s.waitForBoot {
 				kb.value = vv.linlin(min, max, 0, 1);
 			});
 		};
-		mkVocalKnob = { |label, param, min, max, init, posX, posY|
-			var txt, kb, num;
-			txt = StaticText(win, Rect(posX, posY, 90, 20)).string_(label);
-			kb = Knob(win, Rect(posX + 95, posY - 8, 46, 46)).value_((init - min) / (max - min));
-			num = NumberBox(win, Rect(posX + 150, posY, 70, 20)).value_(init.clip(min, max));
+
+		mkVocalKnob = { |label, param, min, max, init, x, y|
+			var kb, num;
+			StaticText(win, Rect(x, y, 90, 20)).string_(label);
+			kb = Knob(win, Rect(x + 92, y - 8, 46, 46)).value_((init - min) / (max - min));
+			num = NumberBox(win, Rect(x + 144, y, 70, 20)).value_(init.clip(min, max));
 			kb.action_({
 				var v = kb.value.linlin(0, 1, min, max);
 				num.value = v;
-				~setVocalParam.(param, v);
+				if([\vocalTexture, \vocalTone].includes(param)) { ~setParam.(param, v, false); } { ~setVocalParam.(param, v); };
 			});
 			num.action_({
 				var v = num.value.clip(min, max);
 				num.value = v;
 				kb.value = v.linlin(min, max, 0, 1);
-				~setVocalParam.(param, v);
+				if([\vocalTexture, \vocalTone].includes(param)) { ~setParam.(param, v, false); } { ~setVocalParam.(param, v); };
 			});
 		};
 
-		mkToggle = { |label, param, init, posX, posY|
-			var bt = Button(win, Rect(posX, posY, 120, 24))
-				.states_([
-					[label ++ " OFF", Color.white, Color.red],
-					[label ++ " ON", Color.black, Color.green]
-				])
-				.value_(init.asInteger);
-			bt.action_({
-				~setParam.(param, bt.value, false);
-			});
-			~uiControls[param] = (set: { |v| bt.value = v.asInteger.clip(0, 1); });
-		};
-
-		mkStateToggle = { |labelA, labelB, param, init, posX, posY|
-			var bt = Button(win, Rect(posX, posY, 190, 24))
-				.states_([
-					[labelA, Color.black, Color.gray(0.8)],
-					[labelB, Color.black, Color.cyan(0.7)]
-				])
-				.value_(init.asInteger);
-			bt.action_({
-				~setParam.(param, bt.value, false);
-			});
-			~uiControls[param] = (set: { |v| bt.value = v.asInteger.clip(0, 1); });
-		};
-
-		// Hauptsektion
-		mkSlider.("BPM", \bpm, 30, 100, 60, x, y); y = y + gapY;
-		mkSlider.("Mood", \moodRaw, 0, 1, 0.3, x, y); y = y + gapY;
-		mkSlider.("Root Hz", \rootHz, 64, 768, 256, x, y); y = y + gapY;
-		mkKnob.("Filter Base", \filterCutoffBase, 120, 12000, 1800, x, y); y = y + gapY;
-		mkKnob.("Reverb Base", \reverbRoomBase, 0.001, 0.8, 0.4, x, y); y = y + gapY;
-		mkKnob.("Master Vol", \masterVol, 0.001, 0.55, 0.4, x, y);
-
-		// Level-Sektion
-		x = 380; y = 10;
-		mkSlider.("Drone Level", \droneLevel, 0.001, 0.8, 0.6, x, y); y = y + gapY;
-		mkSlider.("Notes Level", \notesLevel, 0.001, 0.8, 0.5, x, y); y = y + gapY;
-		mkSlider.("Noise Level", \noiseLevel, 0, 0.2, 0.04, x, y); y = y + gapY;
-		mkSlider.("Texture Level", \textureLevel, 0, 0.16, 0.04, x, y); y = y + gapY;
-		mkSlider.("Chord Level", \chordLevel, 0, 0.8, 0.6, x, y); y = y + gapY;
-		mkSlider.("Pedal Level", \pedalLevel, 0, 0.3, 0.08, x, y);
-		mkKnob.("Chaos Depth", \chaosDepth, 0, 0.4, 0.12, x, y + gapY);
-		mkKnob.("Texture Duck", \textureDuck, 0, 1, 0.6, x + 230, y + gapY);
-		mkKnob.("Weight Evolve", \weightEvolve, 0, 1, 0.0, x + 460, y + gapY);
-		mkKnob.("Note Density", \noteDensity, 0.2, 1.0, 0.9, x + 690, y + gapY);
-		mkKnob.("Calmness", \calmness, 0, 1, 0.5, x + 690, y + gapY - 62);
-		mkToggle.("AUX In", \auxInEnable, 0, x + 420, y + gapY + 10);
-		mkKnob.("AUX Level", \auxInLevel, 0, 0.9, 0.0, x + 420, y + gapY);
-		mkKnob.("AUX Blend", \auxInBlend, 0, 1, 0.0, x + 200, y + gapY - 62);
-		mkToggle.("Auto Guard", \autoGainProtect, 1, x + 550, y + gapY + 10);
-		mkKnob.("Loud Target", \loudnessTarget, 0.12, 0.45, 0.26, x + 550, y + gapY);
-
-		// Weights
-		x = 10; y = 390;
-		mkWeightSlider.("Cosmic", \cosmicW, 100, x, y); y = y + 40;
-		mkWeightSlider.("Wonder", \wonderW, 0, x, y); y = y + 40;
-		mkWeightSlider.("Hopeful", \hopefulW, 0, x, y); y = y + 40;
-		mkWeightSlider.("Koto", \kotoW, 0, x + 360, 390);
-		mkWeightSlider.("Raga", \ragaW, 0, x + 360, 430);
-		mkWeightSlider.("Pelog", \pelogW, 0, x + 360, 470);
-		mkWeightSlider.("Safir16", \safir16W, 0, x + 360, 510);
-
-		// Buttons / Toggles
-		x = 760; y = 20;
-		mkToggle.("Transport", \transport, 1, x, y); y = y + 34;
-		mkToggle.("Drone Gate", \droneGate, 1, x, y); y = y + 34;
-		mkToggle.("Notes Gate", \notesGate, 1, x, y); y = y + 34;
-		mkToggle.("Noise Gate", \noiseGate, 1, x, y); y = y + 34;
-		mkToggle.("Texture Gate", \textureGate, 1, x, y); y = y + 34;
-		mkToggle.("Macro Gate", \macroGate, 1, x, y);
-		mkToggle.("SAFE Mode", \safeMode, 1, x + 130, 20);
-		uiModeBtn = Button(win, Rect(1160, 20, 150, 24))
+		StaticText(win, Rect(20, 14, 280, 22)).string_("Ambient Core");
+		mkSlider.("Master", \masterVol, 0.001, 0.55, ~paramState[\masterVol] ? 0.24, 20, 40);
+		mkSlider.("Drone", \droneLevel, 0.001, 0.8, ~paramState[\droneLevel] ? 0.55, 20, 70);
+		mkSlider.("Notes", \notesLevel, 0.001, 0.8, ~paramState[\notesLevel] ? 0.48, 20, 100);
+		mkSlider.("Texture", \textureLevel, 0, 0.16, ~paramState[\textureLevel] ? 0.04, 20, 130);
+		mkSlider.("Noise", \noiseLevel, 0, 0.2, ~paramState[\noiseLevel] ? 0.03, 20, 160);
+		mkKnob.("Filter", \filterCutoffBase, 120, 12000, ~paramState[\filterCutoffBase] ? 1800, 20, 206);
+		mkKnob.("Reverb", \reverbRoomBase, 0.001, 0.8, ~paramState[\reverbRoomBase] ? 0.4, 240, 206);
+		mkKnob.("Mood", \moodRaw, 0, 1, ~paramState[\moodRaw] ? 0.3, 460, 206);
+		StaticText(win, Rect(20, 244, 110, 20)).string_("Harmony Mode");
+		~harmonyModeBtn = Button(win, Rect(126, 242, 264, 24))
 			.states_([
-				["BASIC UI ON", Color.black, Color.green(0.7)],
-				["BASIC UI OFF", Color.white, Color.red]
+				["PENTATONIC", Color.black, Color.yellow(0.75)],
+				["COSMIC", Color.white, Color.blue(0.7)],
+				["BLEND", Color.black, Color.green(0.7)],
+				["ALL NOTES", Color.white, Color.magenta(0.7)]
 			])
-			.value_(0)
+			.value_(~harmonyModes.indexOf(~harmonyMode) ? 2)
 			.action_({ |bt|
-				basicUiMode = (bt.value == 0);
-				applyUiMode.(basicUiMode);
+				var m = ~harmonyModes.wrapAt(bt.value);
+				~setHarmonyMode.(m, false);
 			});
-		mkStateToggle.("FULL MIX", "NOTES SOLO", \mixMode, 0, x + 130, 54);
-		StaticText(win, Rect(x + 130, 86, 110, 20)).string_("Scene Speed");
-		Knob(win, Rect(x + 235, 78, 46, 46))
-			.value_(0.5)
-			.action_({ |kb|
-				~scenePeriod = kb.value.linexp(0, 1, 20, 140);
-			});
-		StaticText(win, Rect(x + 458, 86, 80, 20)).string_("Morph");
-		sceneMorphKnob = Knob(win, Rect(x + 518, 78, 46, 46))
-			.value_(~sceneMorph ? 0.0)
-			.action_({ |kb| ~applySceneMorph.(kb.value); });
-		autoSceneBtn = Button(win, Rect(x + 290, 86, 160, 24))
-			.states_([
-				["AUTO SCENE OFF", Color.white, Color.red],
-				["AUTO SCENE ON", Color.black, Color.green]
-			])
-			.value_(0);
-		autoSceneBtn.action_({
-			if(autoSceneBtn.value == 1) { ~startAutoScenes.value; } { ~stopAutoScenes.value; };
-		});
-		arrangementBtn = Button(win, Rect(x + 290, 114, 160, 24))
-			.states_([
-				["ARRANGE OFF", Color.white, Color.red],
-				["ARRANGE ON", Color.black, Color.green]
-			])
-			.value_(0);
-		arrangementBtn.action_({
-			if(arrangementBtn.value == 1) { ~startArrangement.value; } { ~stopArrangement.value; };
-		});
-		~arrangementStatusText = StaticText(win, Rect(x + 458, 114, 170, 20))
-			.string_("Arrangement: idle");
-		arrEditPhase = \intro;
-		arrEditParam = \dnbVol;
-		updateArrEditor = {
-			var v = ~getArrangementParam.(arrEditPhase, arrEditParam);
-			var spec = ~paramSpecs[arrEditParam];
-			if(arrEditNum.notNil and: { spec.notNil }) {
-				arrEditNum.clipLo = spec[0];
-				arrEditNum.clipHi = spec[1];
-				arrEditNum.value = v.clip(spec[0], spec[1]);
-			};
-		};
-		StaticText(win, Rect(1040, 146, 60, 20)).string_("Phase");
-		arrPhaseMenu = PopUpMenu(win, Rect(1088, 144, 130, 22))
-			.items_(["intro", "drop", "breakdown"])
-			.value_(0)
-			.action_({ |pm|
-				var names = [\intro, \drop, \breakdown];
-				arrEditPhase = names[pm.value];
-				updateArrEditor.value;
-			});
-		StaticText(win, Rect(1040, 172, 60, 20)).string_("Param");
-		arrParamMenu = PopUpMenu(win, Rect(1088, 170, 130, 22))
-			.items_(~arrangementEditableParams.collect(_.asString))
-			.value_(0)
-			.action_({ |pm|
-				arrEditParam = ~arrangementEditableParams[pm.value];
-				updateArrEditor.value;
-			});
-		arrEditNum = NumberBox(win, Rect(1040, 198, 88, 22))
-			.value_(~getArrangementParam.(arrEditPhase, arrEditParam));
-		arrApplyBtn = Button(win, Rect(1132, 198, 86, 22))
-			.states_([["APPLY ARR", Color.black, Color.green(0.72)]])
-			.action_({
-				~setArrangementParam.(arrEditPhase, arrEditParam, arrEditNum.value, true);
-				updateArrEditor.value;
-			});
-		arrApplyPhaseBtn = Button(win, Rect(1040, 224, 178, 22))
-			.states_([["APPLY PHASE NOW", Color.black, Color.cyan(0.75)]])
-			.action_({ ~applyArrangementPhaseNow.(arrEditPhase); });
-		updateArrEditor.value;
-		StaticText(win, Rect(760, 146, 44, 20)).string_("I sec");
-		~arrIntroDurBox = NumberBox(win, Rect(798, 144, 48, 22))
-			.value_(~arrangementDurations[\intro] ? 48)
-			.action_({ |nb| ~arrangementDurations[\intro] = nb.value.clip(8, 480).round(1); nb.value = ~arrangementDurations[\intro]; });
-		StaticText(win, Rect(852, 146, 44, 20)).string_("D sec");
-		~arrDropDurBox = NumberBox(win, Rect(890, 144, 48, 22))
-			.value_(~arrangementDurations[\drop] ? 64)
-			.action_({ |nb| ~arrangementDurations[\drop] = nb.value.clip(8, 480).round(1); nb.value = ~arrangementDurations[\drop]; });
-		StaticText(win, Rect(944, 146, 44, 20)).string_("B sec");
-		~arrBreakDurBox = NumberBox(win, Rect(982, 144, 48, 22))
-			.value_(~arrangementDurations[\breakdown] ? 32)
-			.action_({ |nb| ~arrangementDurations[\breakdown] = nb.value.clip(8, 480).round(1); nb.value = ~arrangementDurations[\breakdown]; });
-		Button(win, Rect(760, 172, 88, 22))
-			.states_([["SAVE ARR A", Color.black, Color.cyan(0.75)]])
-			.action_({ ~saveArrangementMacro.(\A); });
-		Button(win, Rect(852, 172, 88, 22))
-			.states_([["LOAD ARR A", Color.black, Color.cyan(0.6)]])
-			.action_({ ~loadArrangementMacro.(\A); updateArrEditor.value; });
-		Button(win, Rect(944, 172, 88, 22))
-			.states_([["SAVE ARR B", Color.black, Color.magenta(0.72)]])
-			.action_({ ~saveArrangementMacro.(\B); });
-		Button(win, Rect(760, 198, 88, 22))
-			.states_([["LOAD ARR B", Color.black, Color.magenta(0.58)]])
-			.action_({ ~loadArrangementMacro.(\B); updateArrEditor.value; });
-		Button(win, Rect(852, 198, 88, 22))
-			.states_([["SAVE ARR C", Color.black, Color.yellow(0.8)]])
-			.action_({ ~saveArrangementMacro.(\C); });
-		Button(win, Rect(944, 198, 88, 22))
-			.states_([["LOAD ARR C", Color.black, Color.yellow(0.64)]])
-			.action_({ ~loadArrangementMacro.(\C); updateArrEditor.value; });
+		Button(win, Rect(400, 242, 140, 24))
+			.states_([["DREAM OFF", Color.white, Color.red], ["DREAM ON", Color.black, Color.green]])
+			.value_((~paramState[\dreamMode] ? 1).asInteger.clip(0, 1))
+			.action_({ |bt| ~setParam.(\dreamMode, bt.value.asFloat, false); });
+		mkKnob.("Dream", \dreamDepth, 0, 1, ~paramState[\dreamDepth] ? 0.35, 560, 242);
+		Button(win, Rect(680, 242, 140, 24))
+			.states_([["BPM GRID", Color.white, Color.red], ["FREE FLOW", Color.black, Color.green]])
+			.value_((~paramState[\ambientFreeRun] ? 1).asInteger.clip(0, 1))
+			.action_({ |bt| ~setParam.(\ambientFreeRun, bt.value.asFloat, false); });
+		mkKnob.("Flow Hz", \ambientRateHz, 0.01, 1.0, ~paramState[\ambientRateHz] ? 0.11, 820, 242);
+		StaticText(win, Rect(680, 210, 70, 20)).string_("Noise");
+		PopUpMenu(win, Rect(744, 208, 170, 24))
+			.items_(["White", "Pink", "Brown", "Green"])
+			.value_((~paramState[\noiseType] ? 1).asInteger.clip(0, 3))
+			.action_({ |pm| ~setParam.(\noiseType, pm.value.asFloat, false); });
 
-		Button(win, Rect(760, 260, 190, 28))
-			.states_([["Reset Weights: Cosmic", Color.black, Color.yellow]])
-			.action_({
-				~applyParams.([\cosmicW, 100, \wonderW, 0, \hopefulW, 0, \kotoW, 0, \ragaW, 0, \pelogW, 0, \safir16W, 0], true);
-			});
-
-		Button(win, Rect(760, 298, 190, 28))
-			.states_([["FREE SYNTH", Color.white, Color.red]])
-			.action_({
-				if(~shiftko.notNil) { ~shiftko.free; ~shiftko = nil; };
-			});
-
-		Button(win, Rect(760, 336, 190, 28))
-			.states_([["RESTART SYNTH", Color.black, Color.green]])
-			.action_({
-				if(~shiftko.notNil) { ~shiftko.free; };
-				~shiftko = Synth(\shiftkoAmbientMath);
-				~applyParams.(~defaultState, true);
-			});
-
-		Button(win, Rect(760, 374, 190, 28))
-			.states_([["PRESET SAFE", Color.black, Color.gray(0.75)]])
-			.action_({
-				~applyScene.(\safe);
-				sceneMorphKnob.value = ~sceneMorph;
-			});
-
-		Button(win, Rect(760, 412, 190, 28))
-			.states_([["PRESET WILD", Color.white, Color.magenta(0.8)]])
-			.action_({
-				~applyScene.(\wild);
-				sceneMorphKnob.value = ~sceneMorph;
-			});
-
-		Button(win, Rect(760, 450, 190, 28))
-			.states_([["PRESET FOCUS WEIGHTS", Color.black, Color.cyan(0.8)]])
-			.action_({
-				~applyScene.(\focus);
-				sceneMorphKnob.value = ~sceneMorph;
-			});
-		Button(win, Rect(760, 488, 190, 28))
-			.states_([["RUN SELFTEST", Color.black, Color.yellow]])
-			.action_({ ~runSelfTest.value; });
-		Button(win, Rect(760, 526, 190, 28))
-			.states_([["PANIC SILENCE", Color.white, Color.red]])
-			.action_({ ~panicSilence.value; });
-		Button(win, Rect(760, 558, 190, 28))
-			.states_([["RESTORE STATE", Color.black, Color.green]])
-			.action_({ ~restoreFromSceneState.value; });
-		Button(win, Rect(760, 590, 92, 28))
-			.states_([["SCOPE", Color.black, Color.cyan(0.8)]])
-			.action_({ s.scope(2); });
-		Button(win, Rect(858, 590, 92, 28))
-			.states_([["VIS", Color.black, Color.cyan(0.7)]])
-			.action_({ ~openVisualDashboard.value; });
-		cpuGuardBtn = Button(win, Rect(560, 558, 190, 28))
-			.states_([
-				["CPU GUARD OFF", Color.white, Color.red],
-				["CPU GUARD ON", Color.black, Color.green]
-			])
-			.value_(1)
-			.action_({ |bt|
-				~autoCpuGuard = (bt.value == 1);
-				("CPU guard: " ++ ~autoCpuGuard).postln;
-			});
-		Button(win, Rect(560, 450, 190, 28))
-			.states_([
-				["MIDI DEBUG OFF", Color.white, Color.red],
-				["MIDI DEBUG ON", Color.black, Color.green]
-			])
-			.value_(0)
-			.action_({ |bt|
-				~midiDebug = (bt.value == 1);
-				("MIDI debug: " ++ ~midiDebug).postln;
-			});
-		Button(win, Rect(560, 412, 190, 28))
-			.states_([
-				["STRICT PICKUP OFF", Color.white, Color.red],
-				["STRICT PICKUP ON", Color.black, Color.green]
-			])
-			.value_(if(~strictPickupMode) { 1 } { 0 })
-			.action_({ |bt|
-				~strictPickupMode = (bt.value == 1);
-				if(~strictPickupMode) { ~lockAllMappedPickups.value; };
-				("Strict pickup: " ++ ~strictPickupMode).postln;
-			});
-		Button(win, Rect(560, 336, 190, 28))
-			.states_([
-				["PERF SAFE LOCK OFF", Color.white, Color.red],
-				["PERF SAFE LOCK ON", Color.black, Color.green]
-			])
-			.value_(if(~performanceSafeLock) { 1 } { 0 })
-			.action_({ |bt|
-				~performanceSafeLock = (bt.value == 1);
-				if(~performanceSafeLock) {
-					~performanceSafeCaps.keysValuesDo { |k, cap|
-						var v = ~paramState[k];
-						if(v.notNil and: { v > cap }) { ~setParam.(k, cap, true); };
-					};
-				};
-				("Performance safe lock: " ++ ~performanceSafeLock).postln;
-			});
-		Button(win, Rect(560, 374, 190, 28))
-			.states_([
-				["PICKUP OVERRIDE OFF", Color.white, Color.gray(0.5)],
-				["PICKUP OVERRIDE ON", Color.black, Color.yellow]
-			])
-			.value_(if(~pickupOverride) { 1 } { 0 })
-			.action_({ |bt|
-				~pickupOverride = (bt.value == 1);
-				("Pickup override: " ++ ~pickupOverride).postln;
-			});
-		midiOutBtn = Button(win, Rect(360, 450, 190, 28))
-			.states_([
-				["MIDI FEEDBACK OFF", Color.white, Color.red],
-				["MIDI FEEDBACK ON", Color.black, Color.green]
-			])
-			.value_(0)
-			.action_({ |bt|
-				~midiFeedback = (bt.value == 1);
-				("MIDI feedback: " ++ ~midiFeedback).postln;
-				~sendStatusFeedback.(\midiFeedback, if(~midiFeedback) { 1 } { 0 });
-				if(~midiFeedback) { ~sendFeedbackPageSnapshot.value; };
-			});
-		StaticText(win, Rect(360, 526, 70, 20)).string_("FB Page");
-		fbPageMenu = PopUpMenu(win, Rect(430, 526, 120, 24))
-			.items_(["performance", "timbre", "rhythm", "breakbeat", "full"])
-			.value_(0)
-			.action_({ |pm|
-				var names = [\performance, \timbre, \rhythm, \breakbeat, \full];
-				~feedbackPage = names[pm.value];
-				~sendStatusFeedback.(\feedbackPage, ~feedbackPageIndex.(~feedbackPage));
-				if(~midiFeedback) { ~sendFeedbackPageSnapshot.value; };
-			});
-		StaticText(win, Rect(360, 552, 70, 20)).string_("FB Rate");
-		fbRateKnob = Knob(win, Rect(430, 546, 36, 36))
-			.value_(0.34)
-			.action_({ |kb|
-				~feedbackRateHz = kb.value.linexp(0, 1, 2, 50);
-			});
-		Button(win, Rect(482, 548, 68, 24))
-			.states_([["FB NOW", Color.black, Color.cyan(0.75)]])
-			.action_({ ~sendFeedbackPageSnapshot.value; });
-		Button(win, Rect(482, 578, 68, 24))
-			.states_([["OLED", Color.black, Color.cyan(0.7)]])
-			.action_({ ~sendOledFrame.value; });
-		Button(win, Rect(560, 558, 120, 24))
-			.states_([["OLED AUTO OFF", Color.black, Color.gray(0.75)], ["OLED AUTO ON", Color.white, Color.green(0.65)]])
-			.value_(if(~oledAutoEnabled) { 1 } { 0 })
-			.action_({ |bt|
-				if(bt.value == 1) { ~startOledTask.value; } { ~stopOledTask.value; };
-			});
-		StaticText(win, Rect(684, 558, 62, 20)).string_("OLED Hz");
-		Knob(win, Rect(744, 552, 36, 36))
-			.value_(((~oledAutoRateHz ? 10).linlin(1, 30, 0, 1)).clip(0, 1))
-			.action_({ |kb|
-				~oledAutoRateHz = kb.value.linlin(0, 1, 1, 30).round(1);
-				if(~oledAutoEnabled) { ~startOledTask.value; };
-			});
-		Button(win, Rect(560, 526, 190, 28))
-			.states_([["RESCAN MIDI OUT", Color.black, Color.cyan(0.75)]])
-			.action_({ ~setupMidiOut.value; });
-		Button(win, Rect(560, 488, 190, 28))
+		Button(win, Rect(20, 278, 150, 28))
 			.states_([["SAVE SESSION", Color.black, Color.gray(0.82)]])
 			.action_({ ~saveState.value; });
-		Button(win, Rect(360, 488, 190, 28))
+		Button(win, Rect(180, 278, 150, 28))
 			.states_([["LOAD SESSION", Color.black, Color.gray(0.78)]])
-			.action_({ ~loadState.value; });
-		Button(win, Rect(560, 526, 190, 28))
+			.action_({ ~loadState.value; ~ensureAudibleState.value; });
+		Button(win, Rect(340, 278, 150, 28))
 			.states_([["RESET SESSION", Color.white, Color.red]])
-			.action_({ ~applyParams.(~defaultState, true); });
-		Button(win, Rect(160, 488, 190, 28))
-			.states_([["SAVE MIDI PROFILE", Color.black, Color.gray(0.75)]])
-			.action_({ ~saveMidiProfile.value; });
-		Button(win, Rect(160, 450, 190, 28))
-			.states_([["LOAD MIDI PROFILE", Color.black, Color.gray(0.72)]])
-			.action_({ ~loadMidiProfile.value; });
-		Button(win, Rect(160, 526, 92, 28))
-			.states_([["CAP A", Color.black, Color.cyan(0.7)]])
-			.action_({ ~captureSnapshot.(\A); });
-		Button(win, Rect(258, 526, 92, 28))
-			.states_([["LOAD A", Color.black, Color.cyan(0.55)]])
-			.action_({ ~loadSnapshot.(\A); });
-		Button(win, Rect(160, 558, 92, 28))
-			.states_([["CAP B", Color.black, Color.magenta(0.7)]])
-			.action_({ ~captureSnapshot.(\B); });
-		Button(win, Rect(258, 558, 92, 28))
-			.states_([["LOAD B", Color.black, Color.magenta(0.55)]])
-			.action_({ ~loadSnapshot.(\B); });
-		Button(win, Rect(10, 558, 92, 28))
-			.states_([["MUTATE", Color.black, Color.yellow]])
-			.action_({ ~mutateState.value; });
-		Button(win, Rect(108, 558, 46, 28))
-			.states_([["UNDO", Color.black, Color.gray(0.78)]])
-			.action_({ ~undoLastMutation.value; });
-		StaticText(win, Rect(10, 590, 82, 20)).string_("Mut Amt");
-		Knob(win, Rect(84, 582, 36, 36))
-			.value_(0.25)
-			.action_({ |kb| ~mutateAmount = kb.value.linlin(0, 1, 0.02, 0.8); });
+			.action_({ ~applyParams.(~defaultState, true); ~ensureAudibleState.value; });
+		Button(win, Rect(500, 278, 150, 28))
+			.states_([["PANIC SILENCE", Color.white, Color.red(0.7)]])
+			.action_({ ~panicSilence.value; });
 
-		learnParams = ~paramSpecs.keys.asArray.sort;
-		StaticText(win, Rect(10, 450, 72, 20)).string_("Learn Param");
-		learnParamMenu = PopUpMenu(win, Rect(82, 450, 160, 24))
-			.items_(learnParams.collect(_.asString))
-			.value_((learnParams.indexOf(\textureLevel) ? 0))
-			.action_({ |pm| ~learnTargetParam = learnParams[pm.value]; });
-		~learnTargetParam = learnParams[learnParamMenu.value];
-		learnTypeMenu = PopUpMenu(win, Rect(10, 480, 110, 24))
-			.items_(["absolute", "encoder"])
-			.value_(0)
-			.action_({ |pm| ~learnTargetType = if(pm.value == 0) { \absolute } { \encoder }; });
-		learnBtn = Button(win, Rect(126, 480, 116, 24))
-			.states_([["ARM MIDI LEARN", Color.black, Color.yellow]])
-			.action_({
-				~learnMode = true;
-				("[MIDI LEARN] armed for " ++ ~learnTargetType ++ " -> " ++ ~learnTargetParam).postln;
-			});
-		monitorText = StaticText(win, Rect(10, 526, 330, 58))
-			.string_("CPU monitor init...");
-		~monitorTask = Task({
-			inf.do {
-				var avg = s.avgCPU.round(0.1);
-				var peak = s.peakCPU.round(0.1);
-				var nodes = (s.statusWatcher.notNil).if({ s.statusWatcher.numSynths }, { -1 });
-				var locked = (~countLockedPickups.value ? 0);
-				{
-					monitorText.string = "CPU avg/peak: " ++ avg ++ "% / " ++ peak ++ "%\nSynth nodes: " ++ nodes ++ " | CPU guard: " ++ ~cpuGuardState ++ "\nScene: " ++ (~currentScene ? \safe) ++ " | Pickup lock: " ++ locked;
-				}.defer;
-				~applyCpuGuard.(avg);
-				0.6.wait;
-			}
-		}).play(AppClock);
-
-		// DnB/Jungle Control Block (simplified)
-		StaticText(win, Rect(360, 590, 170, 20)).string_("DnB / Jungle Slicer");
-		Button(win, Rect(360, 616, 140, 24))
+		StaticText(win, Rect(20, 338, 260, 22)).string_("DnB / Jungle");
+		dnbBtn = Button(win, Rect(20, 364, 140, 24))
 			.states_([["DNB OFF", Color.white, Color.red], ["DNB ON", Color.black, Color.green]])
-			.value_(0)
+			.value_(if(~dnb[\player].notNil) { 1 } { 0 })
 			.action_({ |bt| ~toggleDnb.value; bt.value = if(~dnb[\player].notNil) { 1 } { 0 }; });
-		Button(win, Rect(506, 616, 120, 24))
+		Button(win, Rect(170, 364, 140, 24))
 			.states_([["NEXT BREAK", Color.black, Color.yellow]])
 			.action_({
 				~loadBreakByIndex.((~breakPaths ? []).size.rand);
 				if(~dnb[\player].notNil) { ~startDnb.value; };
 			});
-		mkKnob.("DnB Vol", \dnbVol, 0, 1, ~paramState[\dnbVol] ? 0.0, 360, 648);
-		mkKnob.("Chaos", \dnbChaos, 0, 1, ~paramState[\dnbChaos] ? 0.3, 530, 648);
-		mkKnob.("Roll", \dnbRoll, 0, 1, ~paramState[\dnbRoll] ? 0.0, 700, 648);
-		mkKnob.("Stutter", \dnbStutter, 0, 0.35, ~paramState[\dnbStutter] ? 0.08, 870, 648);
-		mkKnob.("Rate Off", \dnbRateOffset, 0.25, 2.0, ~paramState[\dnbRateOffset] ? 1.0, 1030, 648);
-		mkKnob.("DnB Rev", \dnbRev, 0, 1, ~paramState[\dnbRev] ? 0.12, 360, 704);
-		mkKnob.("Tgt BPM", \dnbTargetBpm, 80, 220, ~paramState[\dnbTargetBpm] ? 170, 530, 704);
-		mkKnob.("Src BPM", \dnbSourceBpm, 60, 220, ~paramState[\dnbSourceBpm] ? 135, 700, 704);
-		mkKnob.("Break HPF", \dnbBreakHPF, 30, 1200, ~paramState[\dnbBreakHPF] ? 90, 870, 704);
-		mkKnob.("Kick Amp", \dnbKickAmp, 0, 1, ~paramState[\dnbKickAmp] ? 0.45, 1030, 704);
-		mkKnob.("Sidechain", \dnbSidechainDepth, 0, 0.6, ~paramState[\dnbSidechainDepth] ? 0.18, 1190, 704);
-		StaticText(win, Rect(870, 760, 70, 20)).string_("FB Page");
-		dnbPageMenu = PopUpMenu(win, Rect(940, 756, 140, 24))
-			.items_(["performance", "timbre", "rhythm", "breakbeat", "full"])
-			.value_(0)
-			.action_({ |pm|
-				var names = [\performance, \timbre, \rhythm, \breakbeat, \full];
-				~feedbackPage = names[pm.value];
-				~sendStatusFeedback.(\feedbackPage, ~feedbackPageIndex.(~feedbackPage));
-				if(~midiFeedback) { ~sendFeedbackPageSnapshot.value; };
-			});
-		// Vocal Granular Block (simplified)
-		StaticText(win, Rect(360, 790, 190, 20)).string_("Vocal Granular");
-		Button(win, Rect(360, 816, 140, 24))
+		mkKnob.("Amount", \dnbVol, 0, 1, ~paramState[\dnbVol] ? 0.28, 20, 398);
+		mkKnob.("Energy", \dnbEnergy, 0, 1, ~paramState[\dnbEnergy] ? 0.35, 240, 398);
+		mkKnob.("Tone", \dnbTone, 0, 1, ~paramState[\dnbTone] ? 0.45, 460, 398);
+		mkKnob.("Tempo", \dnbTargetBpm, 80, 220, ~paramState[\dnbTargetBpm] ? 170, 680, 398);
+
+		StaticText(win, Rect(20, 468, 260, 22)).string_("Vocal Granular");
+		vocBtn = Button(win, Rect(20, 494, 140, 24))
 			.states_([["VOC OFF", Color.white, Color.red], ["VOC ON", Color.black, Color.green]])
-			.value_(0)
+			.value_(if(~vocal[\synth].notNil) { 1 } { 0 })
 			.action_({
 				|bt|
 				~toggleVocalGranular.value;
 				bt.value = if(~vocal[\synth].notNil) { 1 } { 0 };
 				if(vocalPathText.notNil and: { ~vocal[\path].notNil }) { vocalPathText.string = ("Vocal: " ++ PathName(~vocal[\path]).fileName); };
 			});
-		Button(win, Rect(506, 816, 120, 24))
+		Button(win, Rect(170, 494, 140, 24))
 			.states_([["NEXT VOCAL", Color.black, Color.cyan(0.75)]])
 			.action_({
 				var idx = (~vocalPaths ? []).size.rand;
@@ -1887,20 +1843,15 @@ s.waitForBoot {
 				if(vocalPathText.notNil) { vocalPathText.string = ("Vocal: " ++ PathName((~vocalPaths ? [])[idx]).fileName); };
 				if(~vocal[\synth].notNil) { ~startVocalGranular.value; };
 			});
-		vocalPathText = StaticText(win, Rect(808, 818, 420, 20)).string_("Vocal: (none)");
-		mkVocalKnob.("V Amp", \vocalAmp, 0, 0.5, ~vocal[\amp] ? 0.14, 360, 850);
-		mkVocalKnob.("V Rate", \vocalRate, 0.25, 2.0, ~vocal[\rate] ? 1.0, 530, 850);
-		mkVocalKnob.("V Pos", \vocalPos, 0, 1, ~vocal[\pos] ? 0.5, 700, 850);
-		mkVocalKnob.("V Jitter", \vocalJitter, 0, 0.45, ~vocal[\posJitter] ? 0.18, 870, 850);
-		mkVocalKnob.("V Dur", \vocalGrainDur, 0.02, 0.5, ~vocal[\grainDur] ? 0.16, 1040, 850);
-		mkVocalKnob.("V Dens", \vocalDensity, 1, 80, ~vocal[\density] ? 10, 1210, 850);
-		mkVocalKnob.("V HPF", \vocalHpf, 40, 1200, ~vocal[\hpf] ? 120, 360, 882);
-		mkVocalKnob.("V LPF", \vocalLpf, 500, 14000, ~vocal[\lpf] ? 8500, 530, 882);
-		mkVocalKnob.("V Rev", \vocalRev, 0, 1, ~vocal[\rev] ? 0.2, 700, 882);
-		mkVocalKnob.("V Pan", \vocalPanWidth, 0, 1, ~vocal[\panWidth] ? 0.6, 870, 882);
+		vocalPathText = StaticText(win, Rect(320, 496, 620, 20)).string_("Vocal: (none)");
+		mkVocalKnob.("Amount", \vocalAmp, 0, 0.5, ~vocal[\amp] ? 0.2, 20, 528);
+		mkVocalKnob.("Texture", \vocalTexture, 0, 1, ~paramState[\vocalTexture] ? 0.45, 240, 528);
+		mkVocalKnob.("Tone", \vocalTone, 0, 1, ~paramState[\vocalTone] ? 0.45, 460, 528);
+		mkVocalKnob.("Rate", \vocalRate, 0.25, 2.0, ~vocal[\rate] ? 1.0, 680, 528);
 
-		~loadArrangementMacrosFile.value;
 		~loadState.value;
+		~ensureAudibleState.value;
+		~setHarmonyMode.(~harmonyMode, true);
 		if(PathName(~defaultDnbBreakPath).isFile) {
 			~loadDnbSample.(~defaultDnbBreakPath);
 			~setParam.(\dnbSourceBpm, ~getSampleSourceBpm.(~defaultDnbBreakPath, 170), true);
@@ -1908,15 +1859,18 @@ s.waitForBoot {
 		~setupMidi.value;
 		if(~strictPickupMode) { ~lockAllMappedPickups.value; };
 		~setupMidiOut.value;
-		applyUiMode.(basicUiMode);
+		~midiDebug = false;
+		~midiFeedback = false;
+		~stopOledTask.value;
+		~startSub.value;
+		~startAmbientRhythm.value;
+
 		win.onClose_({
-			if(~monitorTask.notNil) { ~monitorTask.stop; ~monitorTask = nil; };
-			~stopOledTask.value;
-			~closeVisualDashboard.value;
 			~stopDnb.value;
 			~stopVocalGranular.value;
-			~stopArrangement.value;
-			~saveArrangementMacrosFile.value;
+			~stopSub.value;
+			~stopAmbientRhythm.value;
+			~stopOledTask.value;
 			~saveState.value;
 			~stopMidi.value;
 			~stopAutoScenes.value;
