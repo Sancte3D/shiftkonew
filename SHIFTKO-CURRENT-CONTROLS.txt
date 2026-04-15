@@ -1,0 +1,186 @@
+SHIFTKO CURRENT FUNCTIONS / CONTROLS (SuperCollider Monolith)
+Generated for Claude handoff.
+
+Main file:
+- supercollider code/shiftko_ambient_mathematical.scd
+
+Core architecture:
+- Single monolithic live instrument with:
+  - Ambient engine (drone/notes/texture/noise)
+  - DnB slicer subsystem
+  - Vocal granular subsystem
+  - MIDI learn/mapping and feedback
+  - Session save/load
+
+Sample libraries in code:
+- ~samplePaths[\breaks]
+- ~samplePaths[\bass]
+- ~samplePaths[\fxCore]
+- ~samplePaths[\atmosPads]
+- ~samplePaths[\atmosVocals]
+
+Break metadata workflow:
+- ~sampleMeta[path] -> sourceBpm
+- ~getSampleSourceBpm(path, fallback)
+- ~loadBreakByIndex(idx): loads break + auto sets dnbSourceBpm
+
+==============================
+UI: IMPORTANT CURRENT LOGIC
+==============================
+
+Basic UI mode:
+- Button: BASIC UI ON / BASIC UI OFF
+- Default is BASIC UI ON.
+- Basic mode shows only core controls + session + DnB/Vocal blocks.
+
+Session controls:
+- SAVE SESSION
+- LOAD SESSION
+- RESET SESSION
+
+Safety / behavior controls:
+- STRICT PICKUP ON/OFF
+- PICKUP OVERRIDE ON/OFF
+- PERF SAFE LOCK ON/OFF
+- AUTO GUARD ON/OFF
+
+DnB simplified controls:
+- DNB OFF/ON (single toggle flow)
+  - ON auto-loads random break if no break loaded, then starts.
+  - OFF stops dnb player.
+- NEXT BREAK (loads random break, restarts if currently running)
+- Knobs:
+  - DnB Vol
+  - Chaos
+  - Roll
+  - Stutter
+  - Rate Off
+  - DnB Rev
+  - Tgt BPM
+  - Src BPM
+  - Break HPF
+  - Kick Amp
+  - Sidechain
+
+Vocal granular simplified controls:
+- VOC OFF/ON (single toggle flow)
+  - ON auto-loads random vocal if none loaded, then starts granular synth.
+  - OFF stops granular synth.
+- NEXT VOCAL (loads random vocal, restarts if currently running)
+- Display: current vocal file name
+- Knobs:
+  - V Amp
+  - V Rate
+  - V Pos
+  - V Jitter
+  - V Dur
+  - V Dens
+  - V HPF
+  - V LPF
+  - V Rev
+  - V Pan
+
+Arrangement block:
+- ARRANGE OFF/ON (task-based intro/drop/breakdown loop)
+- Durations:
+  - I sec
+  - D sec
+  - B sec
+- Phase editor:
+  - Phase selector (intro/drop/breakdown)
+  - Param selector
+  - Value field
+  - APPLY ARR (single param write)
+  - APPLY PHASE NOW (batch apply full phase)
+- Macro slots:
+  - SAVE/LOAD ARR A
+  - SAVE/LOAD ARR B
+  - SAVE/LOAD ARR C
+
+Scene / mix controls:
+- FULL MIX / NOTES SOLO
+- Scene speed knob
+- Morph knob
+- AUTO SCENE OFF/ON
+- PRESET SAFE
+- PRESET WILD
+- PRESET FOCUS WEIGHTS
+
+Utility:
+- RUN SELFTEST
+- PANIC SILENCE
+- RESTORE STATE
+- SCOPE
+- VIS
+
+MIDI + feedback:
+- MIDI FEEDBACK OFF/ON
+- FB Page
+- FB Rate
+- FB NOW
+- OLED (manual frame send)
+- OLED AUTO OFF/ON
+- OLED Hz
+- RESCAN MIDI OUT
+- MIDI DEBUG OFF/ON
+
+Snapshots / mutation:
+- CAP A / LOAD A
+- CAP B / LOAD B
+- MUTATE
+- UNDO
+- Mut Amt knob
+
+MIDI learn:
+- Learn Param dropdown
+- Learn type: absolute / encoder
+- ARM MIDI LEARN
+
+==============================
+MIDI MAPPING (current)
+==============================
+
+Absolute CC map (~midiMap):
+- 1 textureLevel
+- 2 notesLevel
+- 3 droneLevel
+- 4 masterVol
+- 5 calmness
+- 6 chaosDepth
+- 7 weightEvolve
+- 8 noteDensity
+- 9 reverbRoomBase
+- 10 filterCutoffBase
+- 11 textureDuck
+- 12 moodRaw
+- 13 auxInLevel
+- 14 auxInBlend
+- 15 dnbVol
+- 16 dnbChaos
+- 17 dnbRoll
+- 18 dnbRateOffset
+- 19 dnbRev
+- 20 dnbStutter
+- 21 dnbBreakHPF
+- 22 dnbKickAmp
+- 23 dnbSidechainDepth
+
+Encoder CC map (~encoderMap):
+- 31 filterCutoffBase step 0.03
+- 32 reverbRoomBase step 0.025
+- 33 chaosDepth step 0.03
+- 34 noteDensity step 0.025
+
+Pickup behavior:
+- Soft takeover active.
+- Strict pickup lock applies after scene/morph/snapshot/arrangement/state transitions.
+
+==============================
+KNOWN OPEN ROADMAP ITEMS
+==============================
+
+- Full Source/FX refactor with Group.head/tail
+- Full monolith/modular parity
+- Optional NodeProxy/Ndef scene crossfade layer
+- Optional BPM metadata extension to vocals/pads
+- Optional deeper hardware-only UI pruning if desired

@@ -6,7 +6,8 @@
 #X obj 240 40 r reverb-room-mul-rnd;
 #X obj 240 70 float 1;
 #X obj 240 110 expr $f1 * (($f2 <= 0) * 1 + ($f2 > 0) * $f2) * (($f3 <= 0) * 1 + ($f3 > 0) * $f3);
-#X obj 240 150 s reverb-room;
+#X obj 240 140 expr max(0.02\, min(0.88\, $f1));
+#X obj 240 170 s reverb-room;
 #X obj 400 40 loadbang;
 #X msg 400 70 \; reverb-room-mul-lfo 1 \; reverb-room-mul-rnd 1;
 #X connect 0 0 1 0;
@@ -16,4 +17,5 @@
 #X connect 4 0 5 0;
 #X connect 5 0 6 2;
 #X connect 6 0 7 0;
-#X connect 8 0 9 0;
+#X connect 7 0 8 0;
+#X connect 9 0 10 0;
