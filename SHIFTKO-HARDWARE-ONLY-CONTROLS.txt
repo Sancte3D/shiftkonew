@@ -91,7 +91,6 @@ NOT YET IMPLEMENTED (KEEP UPDATED)
 Update this section after every implementation step.
 Only list items that are still open.
 
-- Pentatonic DegreeToKey quantization (idiot-safe harmonic lock for PENTATONIC mode)
 - Optional deterministic source/FX bus order refactor (Group.head/tail)
 - Monolith/modular parity pass (same defaults and macro behavior in both paths)
 - Optional scene crossfade layer (NodeProxy/Ndef fadeTime workflow)

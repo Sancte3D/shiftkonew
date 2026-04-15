@@ -47,7 +47,7 @@ s.waitForBoot {
 		var bpmS, mood, roomBase, dLvl, nLvl, nzLvl, texLvl, mVol, tr, rtHz;
 		var dGate, nGate, nzGate, tGate, chLvl, pdLvl, fBase, mGate;
 		var weights, weightNorm, scaleSel, scaleHz, trigRate, trig, noteTrig, baseTrigRate, freeRunSm, ambientRateSm;
-		var scaleCosmic, scaleWonder, scaleHopeful, scaleKoto, scaleRaga, scalePelog, scaleSafir16;
+		var scaleCosmic, scaleWonder, scaleHopeful, scaleKoto, scaleRaga, scalePelog, scaleSafir16, scaleSafeMajor;
 		var root, octave, fifth, droneCore, droneLfoL, droneLfoR, droneStereo;
 		var detuneA, detuneB, noteHz, noteEnv, noteSig, textureSig, noiseSig, chaosRateJitter, chaosPitchDrift;
 		var bellLvl, bellTrig, bellExciter, bellEnv, bellSig;
@@ -121,14 +121,15 @@ s.waitForBoot {
 		].linlin(-1, 1, 0.65, 1.35);
 		weights = ([cosmicW, wonderW, hopefulW, kotoW, ragaW, pelogW, safir16W] * SelectX.kr(wEvolve, [1 ! 7, wDrift])).max(0.001);
 		weightNorm = weights / (weights.sum + 1e-9);
-		// Skalen als Frequenzverhaeltnisse zur root-Frequenz
-		scaleCosmic  = [1, 9/8, 5/4, 4/3, 3/2, 5/3, 2];
-		scaleWonder  = [1, 16/15, 9/8, 6/5, 4/3, 3/2, 8/5, 2];
-		scaleHopeful = [1, 9/8, 5/4, 45/32, 3/2, 5/3, 15/8, 2];
-		scaleKoto    = [1, 9/8, 4/3, 3/2, 16/9, 2];
-		scaleRaga    = [1, 16/15, 6/5, 4/3, 3/2, 8/5, 9/5, 2];
-		scalePelog   = [1, 1.07, 1.18, 1.32, 1.52, 1.74, 2];
-		scaleSafir16 = [1, 16/15, 9/8, 6/5, 5/4, 4/3, 45/32, 3/2, 8/5, 5/3, 9/5, 15/8, 2];
+		// Pleasant-only harmonic sets to avoid sad/off dissonance in live use.
+		scaleSafeMajor = [1, 9/8, 5/4, 3/2, 5/3, 2];
+		scaleCosmic  = scaleSafeMajor;
+		scaleWonder  = [1, 9/8, 5/4, 45/32, 3/2, 5/3, 15/8, 2];
+		scaleHopeful = [1, 9/8, 5/4, 3/2, 5/3, 15/8, 2];
+		scaleKoto    = scaleSafeMajor;
+		scaleRaga    = scaleSafeMajor;
+		scalePelog   = scaleSafeMajor;
+		scaleSafir16 = scaleSafeMajor;
 
 		chaosRateJitter = LinLin.kr(A2K.kr(LorenzL.ar(0.08)), -1, 1, 0.93, 1.07);
 		moodRateMul = LinLin.kr(mood, 0, 1, 0.78, 1.22);
@@ -155,6 +156,7 @@ s.waitForBoot {
 				TChoose.kr(noteTrig, scaleSafir16)
 			]
 		) * rtHz;
+		scaleHz = TChoose.kr(noteTrig, scaleSafeMajor) * rtHz;
 
 		// Filter-Multiplikatoren wie in Pd-Mix-Patches (LFO + Random + Chaos)
 		lfoMul = SinOsc.kr(0.001).range(0.4, 2.5);
@@ -1120,7 +1122,7 @@ SynthDef(\vocalGranCloud, { |out=0, buf=0, gate=1, amp=0.2, rate=1.0, pos=0.5, p
 					Pkey(\baseAmp) * 0.33,
 					Pkey(\baseAmp) * Pwhite(0.82, 1.18, inf)
 				) * Pkey(\euclidGate) * Pkey(\lsysGate),
-				\isRest, Pif(Pkey(\amp) > 0, false, true),
+				\type, Pif(Pkey(\amp) > 0, \note, \rest),
 				\freq, Pfunc {
 					var root = (~paramState[\rootHz] ? 256).clip(64, 768);
 					var ratio = [1, 5/4, 3/2, 2].wchoose([0.36, 0.24, 0.26, 0.14]);
