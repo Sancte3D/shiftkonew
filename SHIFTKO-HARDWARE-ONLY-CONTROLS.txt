@@ -1,0 +1,98 @@
+SHIFTKO HARDWARE-ONLY CONTROLS (FINAL PHYSICAL SURFACE)
+Compact handoff for hardware build and stage use.
+
+Goal:
+- Keep operation simple, reliable, and performance-safe.
+- Expose only controls that make sense with non-motorized faders/encoders.
+
+=================================
+FINAL PHYSICAL CONTROL SET
+=================================
+
+Master / core sound:
+- Fader: Master Volume
+- Fader: Drone Level
+- Fader: Notes Level
+- Fader: Texture Level
+- Fader: Noise Level
+- Encoder: Filter Cutoff
+- Encoder: Reverb Room
+
+Music behavior:
+- Encoder: Calmness
+- Encoder: Chaos Depth
+- Encoder: Note Density
+- Encoder: Weight Evolve
+- Optional toggle: Safe Mode
+
+DnB block (simplified):
+- Toggle: DNB ON/OFF
+- Button: NEXT BREAK
+- Encoder/Fader: DnB Vol
+- Encoder: DnB Chaos
+- Encoder: DnB Roll
+- Encoder: DnB Stutter
+- Encoder: DnB Rate Offset
+- Encoder: DnB Target BPM
+- Encoder: DnB Source BPM
+- Encoder: DnB Break HPF
+- Encoder: DnB Kick Amp
+- Encoder: DnB Sidechain Depth
+- Encoder: DnB Reverb Send
+
+Vocal granular block (simplified):
+- Toggle: VOC ON/OFF
+- Button: NEXT VOCAL
+- Encoder: Vocal Amp
+- Encoder: Vocal Position
+- Encoder: Vocal Jitter
+- Encoder: Vocal Grain Duration
+- Encoder: Vocal Density
+- Encoder: Vocal Rate
+- Encoder: Vocal HPF
+- Encoder: Vocal LPF
+- Encoder: Vocal Reverb
+- Encoder: Vocal Pan Width
+
+Session / transport essentials:
+- Button: SAVE SESSION
+- Button: LOAD SESSION
+- Button: RESET SESSION
+- Optional button: PANIC SILENCE
+
+=================================
+CONTROLS TO KEEP OFF HARDWARE
+=================================
+
+Not required on final physical front panel:
+- Arrangement macro slot buttons (A/B/C save/load)
+- Deep editor menus for phase/param/value
+- MIDI learn setup widgets
+- Debug/monitor/scopes/visual dashboard controls
+- OLED test/manual diagnostic controls
+- Snapshot A/B mutate/undo block (optional dev-only)
+- Complex scene preset tooling (optional internal only)
+
+Reason:
+- Reduces cost, wiring complexity, and live error risk.
+- Keeps focus on immediately audible musical outcomes.
+
+=================================
+LIVE SAFETY RULES
+=================================
+
+- Strict pickup enabled for non-motorized controls.
+- Performance safe lock caps critical loudness parameters.
+- Auto gain guard remains active.
+- DnB and vocal start flows auto-load random samples if none loaded.
+
+=================================
+MINIMUM UI/PANEL PRINCIPLE
+=================================
+
+If a control does not serve one of these, remove it from hardware:
+- Immediate sound-shaping during performance
+- Safe session control (save/load/reset/panic)
+- Core groove/texture control (DnB/Vocal)
+
+Everything else stays software-side or developer-only.
