@@ -46,7 +46,7 @@ s.waitForBoot {
 		var dGate, nGate, nzGate, tGate, chLvl, pdLvl, fBase, mGate;
 		var weights, weightNorm, scaleSel, scaleHz, trigRate, trig, noteTrig, baseTrigRate, freeRunSm, ambientRateSm;
 		var scaleCosmic, scaleWonder, scaleHopeful, scaleKoto, scaleRaga, scalePelog, scaleSafir16;
-		var root, sub, subAnchor, octave, fifth, droneCore, droneLfoL, droneLfoR, droneStereo;
+		var root, octave, fifth, droneCore, droneLfoL, droneLfoR, droneStereo;
 		var detuneA, detuneB, noteHz, noteEnv, noteSig, textureSig, noiseSig, chaosRateJitter, chaosPitchDrift;
 		var notesEnergy, textureDuckCtrl, textureDucker;
 		var lfoMul, rndMul, chaosMul, cutoff, roomMulRnd, roomCtrl, moodRateMul, moodCutMul;
@@ -156,12 +156,10 @@ s.waitForBoot {
 		cutoff = (fBase * lfoMul * rndMul * chaosMul * moodCutMul * SelectX.kr(dreamOn, [1, (asyncC * slewChaos)])).clip(120, 14000);
 
 		// Drone: harmonische Schichtung (sub + root + octave + fifth), leicht stereo-bewegt
-		root = SinOsc.ar(rtHz) * LinLin.kr(mood, 0, 1, 0.62, 0.44);
-		sub = SinOsc.ar(rtHz * 0.5) * LinLin.kr(mood, 0, 1, 0.14, 0.2);
-		subAnchor = SinOsc.ar(rtHz * 0.25) * 0.06; // stable floor under evolving harmonics
-		octave = (SinOsc.ar(rtHz * 2) + (Saw.ar(rtHz * 2) * 0.1)) * LinLin.kr(mood, 0, 1, 0.12, 0.2);
-		fifth = SinOsc.ar(rtHz * 1.5) * LinLin.kr(mood, 0, 1, 0.04, 0.11);
-		droneCore = (root + sub + subAnchor + octave + fifth) * dLvl * dGate;
+		root = SinOsc.ar(rtHz) * LinLin.kr(mood, 0, 1, 0.52, 0.36);
+		octave = (SinOsc.ar(rtHz * 2) + (Saw.ar(rtHz * 2) * 0.08)) * LinLin.kr(mood, 0, 1, 0.14, 0.2);
+		fifth = SinOsc.ar(rtHz * 1.5) * LinLin.kr(mood, 0, 1, 0.05, 0.1);
+		droneCore = (root + octave + fifth) * dLvl * dGate;
 
 		droneLfoL = SinOsc.kr(0.013).range(0.76, 1.0);
 		droneLfoR = SinOsc.kr(0.017).range(0.76, 1.0);
@@ -205,7 +203,7 @@ s.waitForBoot {
 		noiseSig = noiseSig.clip2(noiseCap);
 
 		droneCap = Lag.kr(SelectX.kr(safeMix, [0.7, 0.55]), 0.2);
-		droneStereo = HPF.ar(droneStereo.clip2(droneCap), 35);
+		droneStereo = HPF.ar(droneStereo.clip2(droneCap), 160);
 
 		// Optionaler AUX-In Pfad (nur aktiv wenn Hardware-ADC/Input vorhanden).
 		auxL = SoundIn.ar(0);
@@ -365,7 +363,7 @@ s.waitForBoot {
 		\dnbRateOffset, 1.0, \dnbRev, 0.12, \dnbTargetBpm, 170, \dnbSourceBpm, 170, \dnbEnergy, 0.35, \dnbTone, 0.45,
 		\vocalTexture, 0.45, \vocalTone, 0.45, \noiseType, 1,
 		\textureLevel, 0.035, \noiseLevel, 0.03, \notesLevel, 0.55, \droneLevel, 0.56,
-		\cosmicW, 70, \wonderW, 20, \hopefulW, 10, \kotoW, 0, \ragaW, 0, \pelogW, 0, \safir16W, 0
+		\cosmicW, 30, \wonderW, 40, \hopefulW, 30, \kotoW, 0, \ragaW, 0, \pelogW, 0, \safir16W, 0
 	];
 	~setParam = { |param, value, syncUI=true|
 		var v = value;
@@ -449,14 +447,15 @@ s.waitForBoot {
 		}
 		{ m == \allNotes } {
 			~applyParams.([
-				\cosmicW, 14, \wonderW, 14, \hopefulW, 14, \kotoW, 14, \ragaW, 14, \pelogW, 14, \safir16W, 16,
-				\noteDensity, 0.94, \weightEvolve, 0.18
+				// "All Notes" here means all SAFE families (no exotic dissonant sets)
+				\cosmicW, 34, \wonderW, 33, \hopefulW, 33, \kotoW, 0, \ragaW, 0, \pelogW, 0, \safir16W, 0,
+				\noteDensity, 0.92, \weightEvolve, 0.16
 			], true);
 		}
 		{
 			~applyParams.([
-				\cosmicW, 20, \wonderW, 30, \hopefulW, 20, \kotoW, 10, \ragaW, 10, \pelogW, 5, \safir16W, 5,
-				\noteDensity, 0.9, \weightEvolve, 0.14
+				\cosmicW, 30, \wonderW, 40, \hopefulW, 30, \kotoW, 0, \ragaW, 0, \pelogW, 0, \safir16W, 0,
+				\noteDensity, 0.9, \weightEvolve, 0.12
 			], true);
 		};
 		~harmonyMode = m;
@@ -473,7 +472,7 @@ s.waitForBoot {
 	~applyParams.(~defaultState, false);
 	~scenePresets = (
 		safe: [\safeMode, 1, \mixMode, 0, \chaosDepth, 0.10, \textureDuck, 0.72, \weightEvolve, 0.10, \noteDensity, 0.82, \calmness, 0.78, \auxInEnable, 0, \auxInLevel, 0.0, \auxInBlend, 0.0, \autoGainProtect, 1, \loudnessTarget, 0.24, \dnbVol, 0.0, \dnbChaos, 0.25, \dnbRoll, 0.0, \dnbStutter, 0.06, \dnbBreakHPF, 120, \dnbKickAmp, 0.32, \dnbSidechainDepth, 0.14, \dnbRateOffset, 1.0, \dnbRev, 0.1, \textureLevel, 0.035, \noiseLevel, 0.03, \notesLevel, 0.52, \droneLevel, 0.55],
-		focus: [\safeMode, 1, \mixMode, 0, \chaosDepth, 0.14, \textureDuck, 0.8, \weightEvolve, 0.08, \noteDensity, 0.95, \calmness, 0.7, \auxInEnable, 0, \auxInLevel, 0.0, \auxInBlend, 0.0, \autoGainProtect, 1, \loudnessTarget, 0.26, \dnbVol, 0.0, \dnbChaos, 0.35, \dnbRoll, 0.15, \dnbStutter, 0.10, \dnbBreakHPF, 90, \dnbKickAmp, 0.45, \dnbSidechainDepth, 0.18, \dnbRateOffset, 1.0, \dnbRev, 0.18, \textureLevel, 0.03, \noiseLevel, 0.025, \notesLevel, 0.62, \droneLevel, 0.5, \cosmicW, 20, \wonderW, 45, \hopefulW, 35, \kotoW, 0, \ragaW, 0, \pelogW, 0, \safir16W, 0],
+		focus: [\safeMode, 1, \mixMode, 0, \chaosDepth, 0.14, \textureDuck, 0.8, \weightEvolve, 0.08, \noteDensity, 0.95, \calmness, 0.7, \auxInEnable, 0, \auxInLevel, 0.0, \auxInBlend, 0.0, \autoGainProtect, 1, \loudnessTarget, 0.26, \dnbVol, 0.0, \dnbChaos, 0.35, \dnbRoll, 0.15, \dnbStutter, 0.10, \dnbBreakHPF, 90, \dnbKickAmp, 0.45, \dnbSidechainDepth, 0.18, \dnbRateOffset, 1.0, \dnbRev, 0.18, \textureLevel, 0.03, \noiseLevel, 0.025, \notesLevel, 0.62, \droneLevel, 0.5, \cosmicW, 30, \wonderW, 40, \hopefulW, 30, \kotoW, 0, \ragaW, 0, \pelogW, 0, \safir16W, 0],
 		wild: [\safeMode, 0, \mixMode, 0, \chaosDepth, 0.24, \textureDuck, 0.45, \weightEvolve, 0.45, \noteDensity, 0.98, \calmness, 0.22, \auxInEnable, 0, \auxInLevel, 0.0, \auxInBlend, 0.0, \autoGainProtect, 1, \loudnessTarget, 0.3, \dnbVol, 0.0, \dnbChaos, 0.5, \dnbRoll, 0.25, \dnbStutter, 0.18, \dnbBreakHPF, 70, \dnbKickAmp, 0.6, \dnbSidechainDepth, 0.26, \dnbRateOffset, 1.05, \dnbRev, 0.22, \textureLevel, 0.08, \noiseLevel, 0.06, \notesLevel, 0.6, \droneLevel, 0.62]
 	);
 	~sceneMorph = 0.0;
