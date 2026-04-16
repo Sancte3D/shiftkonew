@@ -840,10 +840,10 @@ s.waitForBoot {
 			harmonyView.layout_(
 				VLayout(
 					StaticText(harmonyView).string_("HARMONY").align_(\center),
-					rootKnob.view,
-					duckKnob.view,
+					rootKnob,
+					duckKnob,
 					nil,
-					sparkFader.view
+					sparkFader
 				).margins_(10).spacing_(8)
 			);
 
@@ -851,8 +851,8 @@ s.waitForBoot {
 				VLayout(
 					StaticText(masterView).string_("MASTER").align_(\center),
 					nil,
-					dryFader.view,
-					revFader.view
+					dryFader,
+					revFader
 				).margins_(10).spacing_(8)
 			);
 
