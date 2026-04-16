@@ -586,25 +586,18 @@ s.waitForBoot {
 		if(~ecoPatternPlayers.notNil and: { ~ecoPatternPlayers.size > 0 }) {
 			"ECO patterns already active.".postln;
 		} {
-			var padPat, sparkPat;
-			padPat = Pbind(
-				\type, \note,
-				\callback, { |ev|
-					var isRunning = (topEnvironment[\ecoRunning] ? false).asBoolean;
-					var st = topEnvironment[\ecoState] ? \sparse;
-					var ratios = topEnvironment[\ecoRatios] ? [1.0, 1.5, 2.0];
-					var ratioWeights = topEnvironment[\ecoRatioWeights] ? [0.6, 0.3, 0.1];
-					var srcGroup = topEnvironment[\ecoSrcGroup];
-					var layerBaseFn = topEnvironment[\ecoLayerBase];
-					var gaussPanFn = topEnvironment[\ecoGaussPan];
-					var rootHz = topEnvironment[\ecoRootHz] ? 64.midicps;
-					if(isRunning and: { st != \dormant } and: { srcGroup.notNil } and: { layerBaseFn.notNil }) {
-						var r = ratios.wchoose(ratioWeights);
+			var padTask, sparkTask;
+			padTask = Task({
+				loop {
+					var isRunning = (~ecoRunning ? false).asBoolean;
+					var st = ~ecoState ? \sparse;
+					if(isRunning and: { st != \dormant } and: { ~ecoSrcGroup.notNil } and: { ~ecoLayerBase.notNil }) {
+						var r = (~ecoRatios ? [1.0, 1.5, 2.0]).wchoose(~ecoRatioWeights ? [0.6, 0.3, 0.1]);
 						var oct = [0, 1].wchoose([0.76, 0.24]);
-						var pan = if(gaussPanFn.notNil) { gaussPanFn.value } { 0.0 };
-						Synth.head(srcGroup, \ecoPadVoice, [
-							\out, layerBaseFn.([1, 2].wchoose([0.58, 0.42])),
-							\freq, rootHz * r * (2 ** oct),
+						var pan = if(~ecoGaussPan.notNil) { ~ecoGaussPan.value } { 0.0 };
+						Synth.head(~ecoSrcGroup, \ecoPadVoice, [
+							\out, ~ecoLayerBase.([1, 2].wchoose([0.58, 0.42])),
+							\freq, (~ecoRootHz ? 64.midicps) * r * (2 ** oct),
 							\amp, exprand(0.028, 0.072),
 							\atk, exprand(2.8, 10.0),
 							\rel, exprand(14.0, 60.0),
@@ -612,27 +605,23 @@ s.waitForBoot {
 							\distance, exprand(0.45, 0.97).clip(0, 1)
 						]);
 					};
-					nil
-				},
-				\dur, Pexprand(7.0, 32.0, inf)
-			).play(~ecoTempo, quant: 4);
+					exprand(7.0, 32.0).wait;
+				}
+			}).play(~ecoTempo, quant: 4);
 
-			sparkPat = Pbind(
-				\type, \note,
-				\callback, { |ev|
-					var isRunning = (topEnvironment[\ecoRunning] ? false).asBoolean;
-					var st = topEnvironment[\ecoState] ? \sparse;
-					var synths = topEnvironment[\ecoSynths];
-					if(isRunning and: { synths.notNil } and: { synths[\spark].notNil }) {
+			sparkTask = Task({
+				loop {
+					var isRunning = (~ecoRunning ? false).asBoolean;
+					var st = ~ecoState ? \sparse;
+					if(isRunning and: { ~ecoSynths.notNil } and: { ~ecoSynths[\spark].notNil }) {
 						var dens = st.switch(\dormant, 0.01, \sparse, 0.05, \active, 0.2, \decaying, 0.03, { 0.05 });
-						synths[\spark].set(\dens, dens);
+						~ecoSynths[\spark].set(\dens, dens);
 					};
-					nil
-				},
-				\dur, Pwrand([8, 12, 16, 24], [0.35, 0.3, 0.22, 0.13], inf)
-			).play(~ecoTempo, quant: 4);
+					[8, 12, 16, 24].wchoose([0.35, 0.3, 0.22, 0.13]).wait;
+				}
+			}).play(~ecoTempo, quant: 4);
 
-			~ecoPatternPlayers = [padPat, sparkPat];
+			~ecoPatternPlayers = [padTask, sparkTask];
 			"ECO patterns enabled.".postln;
 		};
 	};
@@ -744,7 +733,8 @@ s.waitForBoot {
 		AppClock.sched(0.0, {
 			var win, rootKnob, duckKnob, stateMenu;
 			var dryFader, revFader, sparkFader;
-			var engineView, harmonyView, masterView;
+			var engineView, harmonyView, masterView, header;
+			var mkButton;
 			var dryVal = 0.9, revVal = 0.38, duckVal = 0.1, sparkVal = 0.08, rootVal = 64.0;
 			var b = Window.availableBounds ? Rect(40, 40, 1200, 800);
 			var r = Rect((b.left + 30).asInteger, (b.top + 30).asInteger, 920, 500);
@@ -763,9 +753,12 @@ s.waitForBoot {
 			win.alwaysOnTop_(true);
 			win.alwaysOnTop_(false);
 			win.view.background_(Color.grey(0.15));
-			engineView = CompositeView(win, Rect(0, 0, 1, 1)).background_(Color.grey(0.18));
-			harmonyView = CompositeView(win, Rect(0, 0, 1, 1)).background_(Color.grey(0.18));
-			masterView = CompositeView(win, Rect(0, 0, 1, 1)).background_(Color.grey(0.18));
+			header = StaticText(win).string_("SHIFTKO ECOSYSTEM").align_(\center);
+			header.font = Font("Helvetica", 18);
+			header.stringColor = Color.white;
+			engineView = CompositeView(win).background_(Color.grey(0.18));
+			harmonyView = CompositeView(win).background_(Color.grey(0.18));
+			masterView = CompositeView(win).background_(Color.grey(0.18));
 
 			styleEZ = { |ez|
 				ez.setColors(
@@ -776,6 +769,15 @@ s.waitForBoot {
 					Color.white,
 					Color(1.0, 0.85, 0.2)
 				);
+			};
+
+			mkButton = { |parent, offLabel, onLabel, action|
+				Button(parent)
+					.states_([
+						[offLabel, Color.white, Color.grey(0.25)],
+						[onLabel, Color.black, Color(0.95, 0.9, 0.2)]
+					])
+					.action_(action)
 			};
 
 			rootKnob = EZKnob(harmonyView, 96@90, "Root MIDI", ControlSpec(40, 84, \lin, 0.1, rootVal), { |ez|
@@ -826,15 +828,12 @@ s.waitForBoot {
 					StaticText(engineView).string_("ENGINE").align_(\center),
 					Button(engineView).states_([["START", Color.black, Color(0.3, 0.95, 0.3)]]).action_({ ~ecoStart.() }),
 					Button(engineView).states_([["STOP", Color.white, Color(0.9, 0.2, 0.2)]]).action_({ ~ecoStop.() }),
-					Button(engineView).states_([["PATTERN OFF", Color.white, Color.grey(0.25)], ["PATTERN ON", Color.black, Color(0.95, 0.9, 0.2)]])
-					.action_({ |bt| if(bt.value == 1) { ~ecoEnablePatterns.() } { ~ecoDisablePatterns.() } }),
-					Button(engineView).states_([["SCENES OFF", Color.white, Color.grey(0.25)], ["SCENES ON", Color.black, Color(0.95, 0.9, 0.2)]])
-					.action_({ |bt| if(bt.value == 1) { ~ecoEnableScenes.() } { ~ecoDisableScenes.() } }),
-					Button(engineView).states_([["OSC OFF", Color.white, Color.grey(0.25)], ["OSC ON", Color.black, Color(0.95, 0.9, 0.2)]])
-					.action_({ |bt| if(bt.value == 1) { ~ecoEnableOSC.() } { ~ecoDisableOSC.() } }),
+					mkButton.value(engineView, "PATTERN OFF", "PATTERN ON", { |bt| if(bt.value == 1) { ~ecoEnablePatterns.() } { ~ecoDisablePatterns.() } }),
+					mkButton.value(engineView, "SCENES OFF", "SCENES ON", { |bt| if(bt.value == 1) { ~ecoEnableScenes.() } { ~ecoDisableScenes.() } }),
+					mkButton.value(engineView, "OSC OFF", "OSC ON", { |bt| if(bt.value == 1) { ~ecoEnableOSC.() } { ~ecoDisableOSC.() } }),
 					StaticText(engineView).string_("STATE").align_(\center),
 					stateMenu
-				).margins_(10).spacing_(8)
+				).margins_(10).spacing_(10)
 			);
 
 			harmonyView.layout_(
@@ -857,14 +856,18 @@ s.waitForBoot {
 			);
 
 			win.layout_(
-				HLayout(
-					engineView,
-					harmonyView,
-					masterView
-				).margins_(10).spacing_(14)
+				VLayout(
+					header,
+					HLayout(
+						engineView.minWidth_(250),
+						harmonyView.minWidth_(300),
+						masterView.minWidth_(230)
+					).margins_(10).spacing_(14)
+				).margins_(10).spacing_(10)
 			);
 
 			win.onClose_({ ~ecoUIWindow = nil });
+			win.refresh;
 			~ecoUIWindow = win;
 			"ECO UI ready.".postln;
 			nil
